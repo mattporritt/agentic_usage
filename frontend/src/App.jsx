@@ -44,14 +44,19 @@ export default function App() {
 
   const anthropicHistory = mergeHistory(data?.anthropic?.history, data?.logs?.anthropic?.history)
   const openaiHistory = mergeHistory(data?.openai?.history, data?.logs?.openai?.history)
+  const claudeCodeHistory = data?.claude_code?.history || []
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-950">
       <Header lastUpdated={data?.last_updated} />
 
       <main className="flex-1 flex flex-col gap-6 p-6">
-        {/* Provider cards */}
-        <div className="grid grid-cols-2 gap-6">
+        {/* Provider cards — 3 columns */}
+        <div className="grid grid-cols-3 gap-6">
+          <ProviderCard
+            variant="claude_code"
+            apiData={data?.claude_code}
+          />
           <ProviderCard
             variant="anthropic"
             apiData={data?.anthropic}
@@ -90,6 +95,7 @@ export default function App() {
             <UsageChart
               anthropicHistory={anthropicHistory}
               openaiHistory={openaiHistory}
+              claudeCodeHistory={claudeCodeHistory}
               days={days}
             />
           </div>

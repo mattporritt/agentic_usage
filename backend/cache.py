@@ -15,4 +15,5 @@ cache: dict[str, ProviderCache] = {
     "anthropic": ProviderCache(),
     "openai": ProviderCache(),
     "logs": ProviderCache(),
+    "claude_code": ProviderCache(),
 }

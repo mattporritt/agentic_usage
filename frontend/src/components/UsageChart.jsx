@@ -9,31 +9,32 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-function buildChartData(anthropicHistory, openaiHistory, days) {
+function buildChartData(anthropicHistory, openaiHistory, claudeCodeHistory, days) {
   const now = new Date()
   const dateMap = {}
 
-  // Generate last N date keys
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now)
     d.setUTCDate(d.getUTCDate() - i)
     const key = d.toISOString().slice(0, 10)
-    dateMap[key] = { date: key, anthropic: 0, openai: 0 }
+    dateMap[key] = { date: key, anthropic: 0, openai: 0, claude_code: 0 }
   }
 
-  const merge = (history, field) => {
-    ;(history || []).forEach(({ date, input_tokens = 0, output_tokens = 0 }) => {
-      if (dateMap[date]) dateMap[date][field] = input_tokens + output_tokens
+  const merge = (history, field, tokenFn) => {
+    ;(history || []).forEach((entry) => {
+      if (dateMap[entry.date]) {
+        dateMap[entry.date][field] = tokenFn(entry)
+      }
     })
   }
 
-  merge(anthropicHistory, 'anthropic')
-  merge(openaiHistory, 'openai')
+  merge(anthropicHistory, 'anthropic', (e) => (e.input_tokens ?? 0) + (e.output_tokens ?? 0))
+  merge(openaiHistory, 'openai', (e) => (e.input_tokens ?? 0) + (e.output_tokens ?? 0))
+  merge(claudeCodeHistory, 'claude_code', (e) =>
+    (e.input_tokens ?? 0) + (e.cache_read_tokens ?? 0) + (e.output_tokens ?? 0)
+  )
 
-  return Object.values(dateMap).map((d) => ({
-    ...d,
-    date: d.date.slice(5), // MM-DD for display
-  }))
+  return Object.values(dateMap).map((d) => ({ ...d, date: d.date.slice(5) }))
 }
 
 function fmtY(value) {
@@ -57,8 +58,8 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
-export function UsageChart({ anthropicHistory, openaiHistory, days }) {
-  const chartData = buildChartData(anthropicHistory, openaiHistory, days)
+export function UsageChart({ anthropicHistory, openaiHistory, claudeCodeHistory, days }) {
+  const chartData = buildChartData(anthropicHistory, openaiHistory, claudeCodeHistory, days)
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -78,13 +79,20 @@ export function UsageChart({ anthropicHistory, openaiHistory, days }) {
           width={48}
         />
         <Tooltip content={<CustomTooltip />} />
-        <Legend
-          wrapperStyle={{ fontSize: 12, color: '#9ca3af', paddingTop: 8 }}
+        <Legend wrapperStyle={{ fontSize: 12, color: '#9ca3af', paddingTop: 8 }} />
+        <Line
+          type="monotone"
+          dataKey="claude_code"
+          name="Claude Code"
+          stroke="#fb923c"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4, fill: '#fb923c' }}
         />
         <Line
           type="monotone"
           dataKey="anthropic"
-          name="Anthropic"
+          name="Anthropic API"
           stroke="#a855f7"
           strokeWidth={2}
           dot={false}
@@ -93,7 +101,7 @@ export function UsageChart({ anthropicHistory, openaiHistory, days }) {
         <Line
           type="monotone"
           dataKey="openai"
-          name="OpenAI"
+          name="OpenAI API"
           stroke="#4ade80"
           strokeWidth={2}
           dot={false}
