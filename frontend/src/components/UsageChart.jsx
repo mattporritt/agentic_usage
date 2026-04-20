@@ -59,21 +59,21 @@ export function UsageChart({ claudeCodeHistory, codexHistory, days }) {
         <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.04)" />
         <XAxis
           dataKey="date"
-          tick={{ fill: '#202d44', fontSize: 10, fontFamily: 'var(--font-data)' }}
+          tick={{ fill: '#6b7f99', fontSize: 11, fontFamily: 'var(--font-data)' }}
           tickLine={false}
-          axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
+          axisLine={{ stroke: 'rgba(255,255,255,0.07)' }}
         />
         <YAxis
           tickFormatter={fmtY}
-          tick={{ fill: '#202d44', fontSize: 10, fontFamily: 'var(--font-data)' }}
+          tick={{ fill: '#6b7f99', fontSize: 11, fontFamily: 'var(--font-data)' }}
           tickLine={false}
           axisLine={false}
-          width={44}
+          width={48}
         />
         <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.07)', strokeWidth: 1 }} />
         <Legend
           wrapperStyle={{
-            fontSize: 10, color: '#4e5d7a', paddingTop: 10,
+            fontSize: 12, color: '#8fa2bb', paddingTop: 12,
             fontFamily: 'var(--font-data)', letterSpacing: '0.05em',
           }}
         />

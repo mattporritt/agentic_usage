@@ -8,7 +8,7 @@ export function Header({ lastUpdated }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '14px 24px',
+      padding: '16px 28px',
       borderBottom: '1px solid var(--border)',
       background: 'rgba(7,12,26,0.88)',
       backdropFilter: 'blur(12px)',
@@ -17,10 +17,10 @@ export function Header({ lastUpdated }) {
       top: 0,
       zIndex: 10,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
-          width: 7,
-          height: 7,
+          width: 8,
+          height: 8,
           borderRadius: '50%',
           background: '#22d3a0',
           boxShadow: '0 0 10px 3px rgba(34,211,160,0.45)',
@@ -29,7 +29,7 @@ export function Header({ lastUpdated }) {
         }} />
         <h1 style={{
           margin: 0,
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 700,
           letterSpacing: '0.22em',
           textTransform: 'uppercase',
@@ -41,11 +41,10 @@ export function Header({ lastUpdated }) {
       </div>
 
       <div style={{
-        fontSize: 9,
+        fontSize: 11,
         color: 'var(--text-3)',
-        letterSpacing: '0.12em',
+        letterSpacing: '0.1em',
         textTransform: 'uppercase',
-        fontFamily: 'var(--font-data)',
       }}>
         updated {formatted}
       </div>

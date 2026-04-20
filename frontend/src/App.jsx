@@ -59,8 +59,8 @@ export default function App() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{
-              fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
-              fontFamily: 'var(--font-display)', color: 'var(--text-3)',
+              fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase',
+              fontFamily: 'var(--font-display)', color: 'var(--text-2)',
             }}>
               Output Tokens / Day
             </span>

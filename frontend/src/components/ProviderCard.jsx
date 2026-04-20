@@ -67,9 +67,9 @@ function cacheSavings(today, byModel) {
 
 function calcBurnRate(pct, windowHours, resetIso) {
   if (!resetIso || !pct || !windowHours) return null
-  const resetMs  = new Date(resetIso).getTime()
-  const now      = Date.now()
-  const remainMs = Math.max(0, resetMs - now)
+  const resetMs   = new Date(resetIso).getTime()
+  const now       = Date.now()
+  const remainMs  = Math.max(0, resetMs - now)
   const elapsedMs = windowHours * 3_600_000 - remainMs
   if (elapsedMs < 60_000) return null
   const rate = pct / elapsedMs
@@ -81,10 +81,10 @@ function calcBurnRate(pct, windowHours, resetIso) {
 function getWindows(usage) {
   if (!usage) return []
   return [
-    usage.five_hour  && { label: '5h',   windowHours: 5,                        pct: usage.five_hour.utilization,  reset: usage.five_hour.resets_at },
-    usage.seven_day  && { label: '7d',   windowHours: 168,                      pct: usage.seven_day.utilization,  reset: usage.seven_day.resets_at },
-    usage.primary    && { label: `${usage.primary.window_hours}h`,   windowHours: usage.primary.window_hours,    pct: usage.primary.used_percent,   reset: usage.primary.reset_at },
-    usage.secondary  && { label: `${usage.secondary.window_hours}h`, windowHours: usage.secondary.window_hours,  pct: usage.secondary.used_percent, reset: usage.secondary.reset_at },
+    usage.five_hour  && { label: '5h',  windowHours: 5,                        pct: usage.five_hour.utilization,  reset: usage.five_hour.resets_at },
+    usage.seven_day  && { label: '7d',  windowHours: 168,                      pct: usage.seven_day.utilization,  reset: usage.seven_day.resets_at },
+    usage.primary    && { label: `${usage.primary.window_hours}h`,   windowHours: usage.primary.window_hours,   pct: usage.primary.used_percent,   reset: usage.primary.reset_at },
+    usage.secondary  && { label: `${usage.secondary.window_hours}h`, windowHours: usage.secondary.window_hours, pct: usage.secondary.used_percent, reset: usage.secondary.reset_at },
   ].filter(Boolean)
 }
 
@@ -125,37 +125,38 @@ const VARIANTS = {
     label:      'Claude Code',
     accent:     '#f97316',
     accentText: '#fb923c',
-    accentDim:  'rgba(249,115,22,0.07)',
-    accentMed:  'rgba(249,115,22,0.2)',
+    accentDim:  'rgba(249,115,22,0.08)',
+    accentMed:  'rgba(249,115,22,0.22)',
   },
   codex: {
     label:      'Codex',
     accent:     '#10b981',
     accentText: '#34d399',
-    accentDim:  'rgba(16,185,129,0.07)',
-    accentMed:  'rgba(16,185,129,0.2)',
+    accentDim:  'rgba(16,185,129,0.08)',
+    accentMed:  'rgba(16,185,129,0.22)',
   },
 }
 
-// ─── Primitive sub-components ─────────────────────────────────────────────────
+// ─── Shared style helpers ─────────────────────────────────────────────────────
 
-function Rule() {
-  return <div style={{ height: 1, background: 'var(--border)', margin: '0 -20px' }} />
-}
-
-function Micro({ children, style }) {
+/** Accessible micro-label — 11px, --text-3 (4.8:1 contrast) */
+function Label({ children, style }) {
   return (
     <span style={{
-      fontSize: 9,
-      letterSpacing: '0.13em',
+      fontSize: 11,
+      letterSpacing: '0.11em',
       textTransform: 'uppercase',
       color: 'var(--text-3)',
-      fontFamily: 'var(--font-data)',
+      display: 'block',
       ...style,
     }}>
       {children}
     </span>
   )
+}
+
+function Rule() {
+  return <div style={{ height: 1, background: 'var(--border)', margin: '0 -24px' }} />
 }
 
 // ─── Stat grid ────────────────────────────────────────────────────────────────
@@ -165,9 +166,9 @@ function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
   const cacheValue = fmt(isClaudeCode ? today.cache_read_tokens : today.cached_tokens)
 
   const cells = [
-    { label: 'Input',      value: fmt(today.input_tokens),   hi: false },
-    { label: cacheLabel,   value: cacheValue,                hi: false },
-    { label: 'Output',     value: fmt(today.output_tokens),  hi: true  },
+    { label: 'Input',    value: fmt(today.input_tokens),  hi: false },
+    { label: cacheLabel, value: cacheValue,               hi: false },
+    { label: 'Output',   value: fmt(today.output_tokens), hi: true  },
     ...(efficiency != null
       ? [{ label: 'Cache Hit', value: `${efficiency}%`, hi: efficiency > 50 }]
       : [{ label: 'Total',     value: fmt(today.total_tokens), hi: false }]
@@ -175,16 +176,15 @@ function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 24px' }}>
       {cells.map(c => (
         <div key={c.label}>
-          <Micro>{c.label}</Micro>
+          <Label>{c.label}</Label>
           <div style={{
-            fontSize: 13,
+            fontSize: 15,
             fontWeight: 500,
-            marginTop: 3,
+            marginTop: 4,
             color: c.hi ? accentText : 'var(--text-1)',
-            fontFamily: 'var(--font-data)',
             fontVariantNumeric: 'tabular-nums',
           }}>
             {c.value}
@@ -198,7 +198,7 @@ function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
 // ─── Rate limit bar with burn-rate projection ─────────────────────────────────
 
 function RateBar({ w, accent }) {
-  const burn = calcBurnRate(w.pct, w.windowHours, w.reset)
+  const burn      = calcBurnRate(w.pct, w.windowHours, w.reset)
   const fillColor = w.pct >= 90 ? '#ef4444' : w.pct >= 70 ? '#eab308' : accent
   const ghostColor = !burn ? null
     : burn.willExceed    ? 'rgba(239,68,68,0.28)'
@@ -210,13 +210,13 @@ function RateBar({ w, accent }) {
     : 'var(--text-3)'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Micro>{w.label} window</Micro>
-        <span style={{ fontSize: 11, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
+        <Label style={{ fontSize: 11 }}>{w.label} window</Label>
+        <span style={{ fontSize: 12, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
           {w.pct.toFixed(0)}%
           {w.reset && (
-            <span style={{ color: 'var(--text-3)', marginLeft: 6 }}>
+            <span style={{ color: 'var(--text-3)', marginLeft: 8 }}>
               · resets {timeUntil(w.reset)}
             </span>
           )}
@@ -224,28 +224,26 @@ function RateBar({ w, accent }) {
       </div>
 
       <div style={{
-        position: 'relative', height: 4, borderRadius: 2, overflow: 'hidden',
-        background: 'rgba(255,255,255,0.05)',
+        position: 'relative', height: 5, borderRadius: 3, overflow: 'hidden',
+        background: 'rgba(255,255,255,0.06)',
       }}>
         {ghostColor && (
           <div style={{
             position: 'absolute', top: 0, left: 0, bottom: 0,
             width: `${Math.min(burn.projPct, 100)}%`,
-            borderRadius: 2,
-            background: ghostColor,
+            borderRadius: 3, background: ghostColor,
           }} />
         )}
         <div style={{
           position: 'absolute', top: 0, left: 0, bottom: 0,
           width: `${Math.min(w.pct, 100)}%`,
-          borderRadius: 2,
-          background: fillColor,
+          borderRadius: 3, background: fillColor,
           transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
         }} />
       </div>
 
       {burn && (
-        <div style={{ fontSize: 10, color: burnColor, fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{ fontSize: 12, color: burnColor, fontVariantNumeric: 'tabular-nums' }}>
           {burn.willExceed
             ? `⚡ limit in ~${fmtMs(burn.msToLimit)} at current rate`
             : `→ proj ${burn.projPct}% at reset`
@@ -264,17 +262,16 @@ function QuotaSection({ quota, accent }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Micro>{plan || 'Subscription'}</Micro>
+        <Label>{plan || 'Subscription'}</Label>
         {hard_limit_usd != null
-          ? <span style={{ fontSize: 10, color: 'var(--text-2)' }}>{fmtUsd(used_usd)} / {fmtUsd(hard_limit_usd)}</span>
-          : <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{fmtUsd(used_usd) ?? '—'} used</span>
+          ? <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtUsd(used_usd)} / {fmtUsd(hard_limit_usd)}</span>
+          : <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{fmtUsd(used_usd) ?? '—'} used</span>
         }
       </div>
       {pct != null && (
-        <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
+        <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
           <div style={{
-            height: '100%',
-            width: `${pct}%`,
+            height: '100%', width: `${pct}%`,
             background: pct > 85 ? '#ef4444' : accent,
             borderRadius: 2,
           }} />
@@ -293,10 +290,10 @@ function ModelFooter({ byModel }) {
   if (!entries.length) return null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <Micro>30-day by model</Micro>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Label>30-day by model</Label>
       {entries.map(([model, u]) => (
-        <div key={model} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+        <div key={model} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
           <span style={{
             color: 'var(--text-2)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '46%',
@@ -325,33 +322,33 @@ export function ProviderCard({ variant, data }) {
         border: '1px solid var(--border)',
         borderTop: `2px solid ${v.accent}28`,
         borderRadius: 12,
-        padding: '18px 20px',
+        padding: '20px 24px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <span style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.18em',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
             textTransform: 'uppercase', fontFamily: 'var(--font-display)',
             color: v.accentText,
           }}>
             {v.label}
           </span>
           <span style={{
-            fontSize: 9, padding: '2px 7px',
+            fontSize: 10, padding: '3px 8px',
             border: '1px solid var(--border-hi)', borderRadius: 3,
             color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase',
           }}>
             Not found
           </span>
         </div>
-        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
           {data?.error || 'Install the CLI or set the directory in .env'}
         </p>
       </div>
     )
   }
 
-  const today       = data?.today    ?? {}
-  const byModel     = data?.by_model ?? {}
+  const today        = data?.today    ?? {}
+  const byModel      = data?.by_model ?? {}
   const isClaudeCode = variant === 'claude_code'
   const windows      = getWindows(data?.usage)
   const cost         = estimateCost(today, byModel)
@@ -373,46 +370,45 @@ export function ProviderCard({ variant, data }) {
       {/* ── Card header ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '11px 20px',
+        padding: '13px 24px',
         background: v.accentDim,
         borderBottom: '1px solid var(--border)',
       }}>
         <span style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: '0.18em',
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
           textTransform: 'uppercase', fontFamily: 'var(--font-display)',
           color: v.accentText,
         }}>
           {v.label}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {data?.plan?.subscription_type && (
             <span style={{
-              fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
-              padding: '2px 6px', borderRadius: 3,
-              border: `1px solid ${v.accent}32`,
+              fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+              padding: '3px 8px', borderRadius: 3,
+              border: `1px solid ${v.accent}35`,
               color: v.accentText,
-              fontFamily: 'var(--font-data)',
             }}>
               {data.plan.subscription_type}
             </span>
           )}
           <div style={{
-            width: 6, height: 6, borderRadius: '50%',
+            width: 7, height: 7, borderRadius: '50%',
             background: v.accent,
-            boxShadow: `0 0 8px 3px ${v.accentMed}`,
+            boxShadow: `0 0 9px 3px ${v.accentMed}`,
             animation: 'glow-pulse 2.4s ease-in-out infinite',
           }} />
         </div>
       </div>
 
       {/* ── Card body ── */}
-      <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
         {/* Hero: total tokens + cost */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <div style={{
-              fontSize: 34,
+              fontSize: 38,
               fontWeight: 700,
               lineHeight: 1,
               color: v.accentText,
@@ -422,13 +418,13 @@ export function ProviderCard({ variant, data }) {
             }}>
               {fmt(today.total_tokens)}
             </div>
-            <Micro style={{ marginTop: 5, display: 'block' }}>tokens today</Micro>
+            <Label style={{ marginTop: 6 }}>tokens today</Label>
           </div>
 
           {cost != null && (
             <div style={{ textAlign: 'right' }}>
               <div style={{
-                fontSize: 22,
+                fontSize: 26,
                 fontWeight: 600,
                 lineHeight: 1,
                 color: 'var(--text-1)',
@@ -437,7 +433,7 @@ export function ProviderCard({ variant, data }) {
               }}>
                 {fmtUsd(cost)}
               </div>
-              <Micro style={{ marginTop: 5, display: 'block' }}>est. cost today</Micro>
+              <Label style={{ marginTop: 6 }}>est. cost today</Label>
             </div>
           )}
         </div>
@@ -453,22 +449,22 @@ export function ProviderCard({ variant, data }) {
         />
 
         {savings != null && savings > 0.01 && (
-          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: -6 }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.4 }}>
             ↓ cache saved ~{fmtUsd(savings)} vs uncached today
-          </div>
+          </p>
         )}
 
         {/* Rate limits */}
         {windows.length > 0 && (
           <>
             <Rule />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-              <Micro>Rate limit usage</Micro>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Label>Rate limit usage</Label>
               {windows.map(w => <RateBar key={w.label} w={w} accent={v.accent} />)}
               {data?.usage?.extra_usage && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)', paddingTop: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)' }}>
                   <span>Extra credits</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>
                     {fmtUsd(data.usage.extra_usage.used_credits)} / {fmtUsd(data.usage.extra_usage.monthly_limit)} {data.usage.extra_usage.currency}
                   </span>
                 </div>

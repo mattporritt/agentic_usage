@@ -6,12 +6,13 @@
   --bg:          #03050e;
   --surface:     #070c1a;
   --surface-alt: #0b1228;
-  --border:      rgba(255, 255, 255, 0.055);
-  --border-hi:   rgba(255, 255, 255, 0.11);
+  --border:      rgba(255, 255, 255, 0.07);
+  --border-hi:   rgba(255, 255, 255, 0.14);
 
-  --text-1: #dde4f0;
-  --text-2: #4e5d7a;
-  --text-3: #202d44;
+  /* Accessible text colours — all pass WCAG AA (4.5:1) on --surface */
+  --text-1: #e2eaf5;   /* 15.3:1  — primary values, numbers          */
+  --text-2: #8fa2bb;   /*  7.5:1  — secondary labels, model names     */
+  --text-3: #6b7f99;   /*  4.8:1  — tertiary micro-labels, timestamps */
 
   --font-display: 'Syncopate', sans-serif;
   --font-data:    'JetBrains Mono', 'Cascadia Code', monospace;
@@ -22,11 +23,12 @@ body {
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse 70% 40% at 50% -10%, rgba(249,115,22,0.05) 0%, transparent 55%),
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
   background-size: 100% 100%, 36px 36px, 36px 36px;
   color: var(--text-1);
   font-family: var(--font-data);
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -49,4 +51,4 @@ body {
 
 ::-webkit-scrollbar       { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
