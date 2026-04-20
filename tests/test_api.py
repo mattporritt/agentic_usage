@@ -8,23 +8,26 @@ from backend.cache import cache, ProviderCache
 
 
 def _fresh_cache():
-    cache["anthropic"] = ProviderCache(configured=True, error=None, data={
-        "today": {"input_tokens": 5000, "output_tokens": 2000, "total_tokens": 7000},
-        "history": [{"date": "2026-04-19", "input_tokens": 4000, "output_tokens": 1500}],
+    cache["claude_code"] = ProviderCache(configured=True, error=None, data={
+        "configured": True, "error": None,
+        "today": {"input_tokens": 5000, "cache_read_tokens": 20000, "output_tokens": 2000, "total_tokens": 27000},
+        "history": [{"date": "2026-04-19", "input_tokens": 4000, "cache_read_tokens": 15000, "output_tokens": 1500}],
+        "by_model": {"claude-sonnet-4-6": {"input_tokens": 5000, "cache_read_tokens": 20000, "output_tokens": 2000}},
     })
-    cache["openai"] = ProviderCache(configured=True, error=None, data={
-        "today": {"input_tokens": 3000, "output_tokens": 1000, "total_tokens": 4000},
-        "history": [{"date": "2026-04-19", "input_tokens": 2500, "output_tokens": 800}],
+    cache["codex"] = ProviderCache(configured=True, error=None, data={
+        "configured": True, "error": None,
+        "today": {"input_tokens": 3000, "cached_tokens": 500, "output_tokens": 1000, "total_tokens": 4000},
+        "history": [{"date": "2026-04-19", "input_tokens": 2500, "cached_tokens": 200, "output_tokens": 800}],
+        "by_model": {"gpt-5.4": {"input_tokens": 3000, "cached_tokens": 500, "output_tokens": 1000}},
     })
     cache["logs"] = ProviderCache(data={
-        "anthropic": {"today": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}, "history": []},
-        "openai": {"today": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}, "history": []},
+        "today": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+        "history": [],
     })
 
 
 @pytest.fixture
 def client():
-    # Patch out the lifespan so tests don't trigger real API calls
     with patch("backend.main.refresh_all", new_callable=AsyncMock), \
          patch("backend.main.start_scheduler"):
         from backend.main import app
@@ -44,42 +47,43 @@ def test_stats_structure(client):
     assert resp.status_code == 200
     body = resp.json()
     assert "last_updated" in body
-    assert "anthropic" in body
-    assert "openai" in body
-    assert "logs" in body
+    assert "claude_code" in body
+    assert "codex" in body
+    assert "anthropic" not in body
+    assert "openai" not in body
 
 
 def test_stats_configured_provider(client):
     _fresh_cache()
     body = client.get("/api/stats").json()
-    assert body["anthropic"]["configured"] is True
-    assert body["anthropic"]["error"] is None
-    assert body["anthropic"]["today"]["total_tokens"] == 7000
-    assert len(body["anthropic"]["history"]) == 1
+    assert body["claude_code"]["configured"] is True
+    assert body["claude_code"]["error"] is None
+    assert body["claude_code"]["today"]["total_tokens"] == 27000
+    assert len(body["claude_code"]["history"]) == 1
 
 
 def test_stats_unconfigured_provider(client):
     _fresh_cache()
-    cache["openai"] = ProviderCache(configured=False)
+    cache["codex"] = ProviderCache(configured=False)
     body = client.get("/api/stats").json()
-    assert body["openai"]["configured"] is False
-    assert body["openai"]["today"] is None
-    assert body["openai"]["history"] == []
+    assert body["codex"]["configured"] is False
+    assert body["codex"]["today"] is None
+    assert body["codex"]["history"] == []
 
 
 def test_stats_provider_error(client):
     _fresh_cache()
-    cache["anthropic"].error = "Anthropic: admin key required (403)"
+    cache["claude_code"].data["error"] = "Directory not found"
     body = client.get("/api/stats").json()
-    assert body["anthropic"]["error"] == "Anthropic: admin key required (403)"
-    # Should still return cached data
-    assert body["anthropic"]["today"]["total_tokens"] == 7000
+    assert body["claude_code"]["error"] == "Directory not found"
+    assert body["claude_code"]["today"]["total_tokens"] == 27000
 
 
-def test_stats_includes_log_data(client):
+def test_stats_by_model(client):
     _fresh_cache()
     body = client.get("/api/stats").json()
-    assert body["logs"]["anthropic"]["today"]["total_tokens"] == 150
+    assert "claude-sonnet-4-6" in body["claude_code"]["by_model"]
+    assert "gpt-5.4" in body["codex"]["by_model"]
 
 
 def test_stats_fast_response(client):

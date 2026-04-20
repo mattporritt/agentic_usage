@@ -8,3 +8,4 @@ logs/*.json
 logs/*.jsonl
 node_modules/
 frontend/dist/
+data/

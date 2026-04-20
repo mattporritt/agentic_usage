@@ -38,6 +38,7 @@ function ModelFooter({ byModel }) {
   if (!entries.length) return null
   return (
     <div className="text-xs space-y-0.5 pt-2 border-t border-gray-800/60">
+      <div className="text-gray-600 uppercase tracking-wider text-[10px] mb-1">30-day by model</div>
       {entries.map(([model, usage]) => (
         <div key={model} className="flex justify-between text-gray-600">
           <span className="truncate">{model.replace(/^(claude|gpt)-/, '')}</span>

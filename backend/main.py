@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.cache import cache
 from backend.config import settings
+import backend.db as db
 from backend.scheduler import refresh_all, start_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -18,6 +19,7 @@ FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    db.init(settings.db_path)
     logger.info("Starting up — initial data fetch")
     await refresh_all()
     start_scheduler(settings.poll_interval_seconds)
