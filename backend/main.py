@@ -41,6 +41,9 @@ def _local_source_response(key: str) -> dict:
         "today": d.get("today"),
         "history": d.get("history", []),
         "by_model": d.get("by_model", {}),
+        "plan": d.get("plan"),
+        "usage": d.get("usage"),
+        "quota": d.get("quota"),
     }
 
 
