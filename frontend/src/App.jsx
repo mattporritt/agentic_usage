@@ -12,7 +12,12 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-gray-600 text-sm tracking-widest uppercase">
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100svh',
+        fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase',
+        color: 'var(--text-3)', fontFamily: 'var(--font-display)',
+      }}>
         Loading…
       </div>
     )
@@ -20,42 +25,73 @@ export default function App() {
 
   if (error && !data) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-red-500 text-sm">
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100svh', fontSize: 12, color: '#ef4444',
+        fontFamily: 'var(--font-data)',
+      }}>
         Could not reach backend: {error}
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-950">
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100svh' }}>
       <Header lastUpdated={data?.last_updated} />
 
-      <main className="flex-1 flex flex-col gap-6 p-6">
-        <div className="grid grid-cols-2 gap-6">
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, padding: 20 }}>
+
+        {/* Provider cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <ProviderCard variant="claude_code" data={data?.claude_code} />
-          <ProviderCard variant="codex" data={data?.codex} />
+          <ProviderCard variant="codex"       data={data?.codex} />
         </div>
 
-        <div className="flex-1 bg-gray-900 rounded-xl border border-gray-800 p-6 flex flex-col gap-4 min-h-[280px]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold tracking-widest uppercase text-gray-500">
+        {/* Chart */}
+        <div style={{
+          flex: 1,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: '18px 20px',
+          display: 'flex', flexDirection: 'column', gap: 16,
+          minHeight: 300,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{
+              fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+              fontFamily: 'var(--font-display)', color: 'var(--text-3)',
+            }}>
               Output Tokens / Day
-            </h2>
-            <div className="flex gap-1">
-              {TIME_WINDOWS.map((w) => (
+            </span>
+            <div style={{ display: 'flex', gap: 3 }}>
+              {TIME_WINDOWS.map(w => (
                 <button
                   key={w}
                   onClick={() => setDays(w)}
-                  className={`px-3 py-1 text-xs rounded tracking-wider transition-colors ${
-                    days === w ? 'bg-gray-700 text-gray-100' : 'text-gray-500 hover:text-gray-300'
-                  }`}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 9,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    borderRadius: 4,
+                    border: '1px solid',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    fontFamily: 'var(--font-data)',
+                    ...(days === w
+                      ? { background: 'rgba(255,255,255,0.08)', borderColor: 'var(--border-hi)', color: 'var(--text-1)' }
+                      : { background: 'transparent', borderColor: 'transparent', color: 'var(--text-3)' }
+                    ),
+                  }}
                 >
                   {w}D
                 </button>
               ))}
             </div>
           </div>
-          <div className="h-64">
+
+          <div style={{ height: 260 }}>
             <UsageChart
               claudeCodeHistory={data?.claude_code?.history}
               codexHistory={data?.codex?.history}
@@ -63,6 +99,7 @@ export default function App() {
             />
           </div>
         </div>
+
       </main>
     </div>
   )
