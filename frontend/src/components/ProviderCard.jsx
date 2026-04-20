@@ -39,10 +39,20 @@ function fmtUsd(n) {
 function UsageWindows({ usage, accent }) {
   if (!usage) return null
   const color = accent.replace('text-', 'bg-')
-  const windows = [
-    usage.five_hour && { label: '5h', ...usage.five_hour },
-    usage.seven_day && { label: '7d', ...usage.seven_day },
-  ].filter(Boolean)
+
+  // Normalise both Claude (five_hour/seven_day with utilization) and
+  // Codex (primary/secondary with used_percent) into a common shape.
+  function toWindows(u) {
+    const pairs = [
+      u.five_hour  && { label: '5h',  pct: u.five_hour.utilization,  reset: u.five_hour.resets_at },
+      u.seven_day  && { label: '7d',  pct: u.seven_day.utilization,  reset: u.seven_day.resets_at },
+      u.primary    && { label: `${u.primary.window_hours}h`,   pct: u.primary.used_percent,   reset: u.primary.reset_at },
+      u.secondary  && { label: `${u.secondary.window_hours}h`, pct: u.secondary.used_percent, reset: u.secondary.reset_at },
+    ]
+    return pairs.filter(Boolean)
+  }
+
+  const windows = toWindows(usage)
   if (!windows.length) return null
 
   function timeUntil(iso) {
@@ -62,19 +72,18 @@ function UsageWindows({ usage, accent }) {
           <div className="flex justify-between items-baseline">
             <span className="text-xs text-gray-500">{w.label} window</span>
             <span className="text-xs tabular-nums text-gray-400">
-              {w.utilization.toFixed(0)}%
-              {w.resets_at && (
-                <span className="text-gray-600 ml-1">· resets {timeUntil(w.resets_at)}</span>
+              {w.pct.toFixed(0)}%
+              {w.reset && (
+                <span className="text-gray-600 ml-1">· resets {timeUntil(w.reset)}</span>
               )}
             </span>
           </div>
           <div className="w-full bg-gray-800 rounded-full h-1.5">
             <div
               className={`h-1.5 rounded-full transition-all ${
-                w.utilization >= 90 ? 'bg-red-500' :
-                w.utilization >= 70 ? 'bg-yellow-500' : color
+                w.pct >= 90 ? 'bg-red-500' : w.pct >= 70 ? 'bg-yellow-500' : color
               }`}
-              style={{ width: `${Math.min(w.utilization, 100)}%` }}
+              style={{ width: `${Math.min(w.pct, 100)}%` }}
             />
           </div>
         </div>

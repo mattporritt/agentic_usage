@@ -10,6 +10,7 @@ from backend.sources.codex_parser import parse_codex_sessions
 from backend.sources.claude_oauth import get_plan_info as get_claude_plan
 from backend.sources.claude_usage import fetch_usage as fetch_claude_usage
 from backend.sources.codex_oauth import fetch_quota, get_plan_info as get_codex_plan
+from backend.sources.codex_usage import fetch_usage as fetch_codex_usage
 from backend.config import settings
 import backend.db as db
 
@@ -66,6 +67,10 @@ async def refresh_all() -> None:
         plan = get_codex_plan(codex_dir)
         if plan:
             result["plan"] = plan
+
+        usage = await fetch_codex_usage(codex_dir)
+        if usage:
+            result["usage"] = usage
 
         # Attempt billing quota via OAuth (returns None for ChatGPT subscription accounts)
         quota = await fetch_quota(codex_dir)
