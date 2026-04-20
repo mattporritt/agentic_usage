@@ -31,6 +31,40 @@ function StatRow({ label, value, accent = 'text-gray-300' }) {
   )
 }
 
+function fmtUsd(n) {
+  if (n == null) return null
+  return n < 0.01 ? '<$0.01' : `$${n.toFixed(2)}`
+}
+
+function QuotaBar({ quota, accent }) {
+  if (!quota) return null
+  const { plan, hard_limit_usd, used_usd } = quota
+  const pct = hard_limit_usd > 0 ? Math.min(100, (used_usd / hard_limit_usd) * 100) : null
+  return (
+    <div className="pt-2 border-t border-gray-800/60 space-y-1.5">
+      <div className="flex justify-between items-baseline">
+        <span className="text-[10px] text-gray-600 uppercase tracking-wider">
+          {plan || 'Subscription'}
+        </span>
+        {hard_limit_usd != null
+          ? <span className="text-xs text-gray-500 tabular-nums">
+              {fmtUsd(used_usd)} / {fmtUsd(hard_limit_usd)}
+            </span>
+          : <span className="text-xs text-gray-600">{fmtUsd(used_usd) ?? '—'} used</span>
+        }
+      </div>
+      {pct != null && (
+        <div className="w-full bg-gray-800 rounded-full h-1">
+          <div
+            className={`h-1 rounded-full ${pct > 85 ? 'bg-red-500' : accent.replace('text-', 'bg-')}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ModelFooter({ byModel }) {
   const entries = Object.entries(byModel || {})
     .filter(([, u]) => u.output_tokens > 0 || u.input_tokens > 0)
@@ -90,6 +124,7 @@ export function ProviderCard({ variant, data }) {
         <StatRow label="Output" value={fmt(today.output_tokens)} />
       </div>
 
+      <QuotaBar quota={data?.quota} accent={v.accent} />
       <ModelFooter byModel={data?.by_model} />
     </div>
   )
