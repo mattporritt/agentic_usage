@@ -111,7 +111,14 @@ export function ProviderCard({ variant, data }) {
     <div className={`bg-gray-900 rounded-xl border ${v.border} p-6 shadow-lg ${v.glow} flex flex-col gap-4`}>
       <div className="flex items-center justify-between">
         <h2 className={`text-sm font-bold tracking-widest uppercase ${v.accent}`}>{v.label}</h2>
-        <div className={`w-1.5 h-1.5 rounded-full ${v.dot}`} />
+        <div className="flex items-center gap-2">
+          {data?.plan?.subscription_type && (
+            <span className="text-[10px] uppercase tracking-wider text-gray-600 border border-gray-700 rounded px-1.5 py-0.5">
+              {data.plan.subscription_type}
+            </span>
+          )}
+          <div className={`w-1.5 h-1.5 rounded-full ${v.dot}`} />
+        </div>
       </div>
 
       <div className="space-y-0">

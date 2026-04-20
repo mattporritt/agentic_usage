@@ -1,8 +1,9 @@
-"""Fetch OpenAI billing/subscription data using Codex's stored OAuth token.
+"""Read Codex plan information and attempt OpenAI billing API via stored OAuth token.
 
-Codex stores an OAuth Bearer token in ~/.codex/auth.json that can be used
-with OpenAI's legacy billing API to retrieve subscription plan and monthly
-usage without requiring an admin API key.
+Codex stores an OAuth Bearer token in ~/.codex/auth.json. The JWT payload
+contains chatgpt_plan_type directly (no API call needed). The OpenAI legacy
+billing API requires a browser session cookie (not OAuth Bearer), so quota
+data is not accessible; we gracefully return None for that part.
 """
 import base64
 import json
@@ -29,29 +30,49 @@ def _read_auth(codex_dir: str) -> dict | None:
         return None
 
 
+def _jwt_payload(token: str) -> dict:
+    """Decode JWT payload without verifying signature."""
+    try:
+        segment = token.split(".")[1]
+        segment += "=" * (-len(segment) % 4)
+        return json.loads(base64.urlsafe_b64decode(segment))
+    except Exception:
+        return {}
+
+
 def _jwt_exp(token: str) -> int:
-    """Decode the exp claim from a JWT without verifying signature."""
-    try:
-        segment = token.split(".")[1]
-        segment += "=" * (-len(segment) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(segment))
-        return int(payload.get("exp", 0))
-    except Exception:
-        return 0
+    return int(_jwt_payload(token).get("exp", 0))
 
 
-def _jwt_claim(token: str, key: str) -> str | None:
-    try:
-        segment = token.split(".")[1]
-        segment += "=" * (-len(segment) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(segment))
-        return payload.get(key)
-    except Exception:
+def get_plan_info(codex_dir: str) -> dict[str, Any] | None:
+    """Return Codex plan info decoded directly from the stored JWT.
+
+    Returns:
+        {"subscription_type": "plus"|"free"|..., "account_id": str}
+        or None if auth.json is missing or malformed.
+    """
+    auth = _read_auth(codex_dir)
+    if not auth:
         return None
+
+    access_token = (auth.get("tokens") or {}).get("access_token")
+    if not access_token:
+        return None
+
+    payload = _jwt_payload(access_token)
+    openai_auth = payload.get("https://api.openai.com/auth", {})
+    plan_type = openai_auth.get("chatgpt_plan_type")
+
+    if not plan_type:
+        return None
+
+    return {
+        "subscription_type": plan_type,
+        "account_id": auth.get("account_id"),
+    }
 
 
 async def _refresh(refresh_token: str, client_id: str) -> str | None:
-    """Exchange a refresh_token for a new access_token."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(_AUTH_URL, data={
@@ -67,14 +88,11 @@ async def _refresh(refresh_token: str, client_id: str) -> str | None:
 
 
 async def fetch_quota(codex_dir: str) -> dict[str, Any] | None:
-    """Return quota dict from OpenAI billing API, or None if unavailable.
+    """Attempt OpenAI billing API for quota data.
 
-    Returns:
-        {
-            "plan": str,
-            "hard_limit_usd": float | None,
-            "used_usd": float | None,
-        }
+    Returns a quota dict if accessible, or None. The billing endpoint
+    requires a browser session cookie (not OAuth Bearer), so this will
+    return None for ChatGPT subscription accounts.
     """
     auth = _read_auth(codex_dir)
     if not auth:
@@ -85,15 +103,13 @@ async def fetch_quota(codex_dir: str) -> dict[str, Any] | None:
     if not access_token:
         return None
 
-    # Refresh if expired or expiring within 2 minutes
     if _jwt_exp(access_token) < time.time() + 120:
         refresh = tokens.get("refresh_token")
-        client_id = _jwt_claim(access_token, "client_id") or "app_EMoamEEZ73f0CkXaXp7hrann"
+        client_id = _jwt_payload(access_token).get("client_id", "app_EMoamEEZ73f0CkXaXp7hrann")
         if refresh:
             new_token = await _refresh(refresh, client_id)
             if new_token:
                 access_token = new_token
-                logger.debug("OAuth token refreshed")
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -101,11 +117,10 @@ async def fetch_quota(codex_dir: str) -> dict[str, Any] | None:
         async with httpx.AsyncClient(timeout=10) as client:
             sub_resp = await client.get(f"{_BILLING}/subscription", headers=headers)
             if sub_resp.status_code != 200:
-                logger.debug("Billing subscription returned %d", sub_resp.status_code)
+                logger.debug("Billing subscription returned %d (browser session required)", sub_resp.status_code)
                 return None
             sub = sub_resp.json()
 
-            # Monthly usage (current calendar month)
             from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
             start = now.replace(day=1).strftime("%Y-%m-%d")
@@ -115,18 +130,13 @@ async def fetch_quota(codex_dir: str) -> dict[str, Any] | None:
                 params={"start_date": start, "end_date": end},
                 headers=headers,
             )
-            used_cents = 0
-            if usage_resp.status_code == 200:
-                used_cents = usage_resp.json().get("total_usage", 0)
+            used_cents = usage_resp.json().get("total_usage", 0) if usage_resp.status_code == 200 else 0
 
         plan_title = (sub.get("plan") or {}).get("title", "Unknown")
-        hard_limit = sub.get("hard_limit_usd")
-        soft_limit = sub.get("soft_limit_usd")
-
         return {
             "plan": plan_title,
-            "hard_limit_usd": hard_limit,
-            "soft_limit_usd": soft_limit,
+            "hard_limit_usd": sub.get("hard_limit_usd"),
+            "soft_limit_usd": sub.get("soft_limit_usd"),
             "used_usd": round(used_cents / 100, 4),
         }
 

@@ -7,7 +7,8 @@ from backend.log_parser import parse_log_files
 from backend.sources.claude_code_parser import parse_claude_code_sessions
 from backend.sources.claude_stats_cache import persist_stats_cache
 from backend.sources.codex_parser import parse_codex_sessions
-from backend.sources.codex_oauth import fetch_quota
+from backend.sources.claude_oauth import get_plan_info as get_claude_plan
+from backend.sources.codex_oauth import fetch_quota, get_plan_info as get_codex_plan
 from backend.config import settings
 import backend.db as db
 
@@ -37,6 +38,10 @@ async def refresh_all() -> None:
             await db.persist_source("claude_code", today_str, result["today"], result.get("history", []))
             result["history"] = await db.merge_with_db("claude_code", today_str, result.get("history", []))
 
+        plan = get_claude_plan()
+        if plan:
+            result["plan"] = plan
+
         cache["claude_code"].data = result
         cache["claude_code"].configured = result["configured"]
         cache["claude_code"].error = result.get("error")
@@ -52,7 +57,12 @@ async def refresh_all() -> None:
             await db.persist_source("codex", today_str, result["today"], result.get("history", []))
             result["history"] = await db.merge_with_db("codex", today_str, result.get("history", []))
 
-        # Attempt to fetch quota via stored OAuth token (fails gracefully if unavailable)
+        # Plan type is in the JWT payload — no API call needed
+        plan = get_codex_plan(codex_dir)
+        if plan:
+            result["plan"] = plan
+
+        # Attempt billing quota via OAuth (returns None for ChatGPT subscription accounts)
         quota = await fetch_quota(codex_dir)
         if quota:
             result["quota"] = quota
