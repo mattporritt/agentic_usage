@@ -16,4 +16,5 @@ cache: dict[str, ProviderCache] = {
     "openai": ProviderCache(),
     "logs": ProviderCache(),
     "claude_code": ProviderCache(),
+    "codex": ProviderCache(),
 }

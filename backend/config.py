@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     openai_admin_key: str | None = Field(default=None, alias="OPENAI_ADMIN_KEY")
     log_dir: str = Field(default="/app/logs", alias="LOG_DIR")
     claude_code_dir: str = Field(default="~/.claude", alias="CLAUDE_CODE_DIR")
+    codex_dir: str = Field(default="~/.codex", alias="CODEX_DIR")
     poll_interval_seconds: int = Field(default=60, alias="POLL_INTERVAL_SECONDS")
 
     model_config = {"env_file": ".env", "populate_by_name": True}
