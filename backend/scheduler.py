@@ -8,6 +8,7 @@ from backend.sources.claude_code_parser import parse_claude_code_sessions
 from backend.sources.claude_stats_cache import persist_stats_cache
 from backend.sources.codex_parser import parse_codex_sessions
 from backend.sources.claude_oauth import get_plan_info as get_claude_plan
+from backend.sources.claude_usage import fetch_usage as fetch_claude_usage
 from backend.sources.codex_oauth import fetch_quota, get_plan_info as get_codex_plan
 from backend.config import settings
 import backend.db as db
@@ -41,6 +42,10 @@ async def refresh_all() -> None:
         plan = get_claude_plan()
         if plan:
             result["plan"] = plan
+
+        usage = await fetch_claude_usage()
+        if usage:
+            result["usage"] = usage
 
         cache["claude_code"].data = result
         cache["claude_code"].configured = result["configured"]

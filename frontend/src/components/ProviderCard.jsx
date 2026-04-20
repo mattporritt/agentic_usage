@@ -36,6 +36,61 @@ function fmtUsd(n) {
   return n < 0.01 ? '<$0.01' : `$${n.toFixed(2)}`
 }
 
+function UsageWindows({ usage, accent }) {
+  if (!usage) return null
+  const color = accent.replace('text-', 'bg-')
+  const windows = [
+    usage.five_hour && { label: '5h', ...usage.five_hour },
+    usage.seven_day && { label: '7d', ...usage.seven_day },
+  ].filter(Boolean)
+  if (!windows.length) return null
+
+  function timeUntil(iso) {
+    if (!iso) return null
+    const diff = new Date(iso) - Date.now()
+    if (diff <= 0) return 'now'
+    const h = Math.floor(diff / 3600000)
+    const m = Math.floor((diff % 3600000) / 60000)
+    return h > 0 ? `${h}h ${m}m` : `${m}m`
+  }
+
+  return (
+    <div className="pt-2 border-t border-gray-800/60 space-y-2">
+      <div className="text-[10px] text-gray-600 uppercase tracking-wider">Rate limit usage</div>
+      {windows.map(w => (
+        <div key={w.label} className="space-y-1">
+          <div className="flex justify-between items-baseline">
+            <span className="text-xs text-gray-500">{w.label} window</span>
+            <span className="text-xs tabular-nums text-gray-400">
+              {w.utilization.toFixed(0)}%
+              {w.resets_at && (
+                <span className="text-gray-600 ml-1">· resets {timeUntil(w.resets_at)}</span>
+              )}
+            </span>
+          </div>
+          <div className="w-full bg-gray-800 rounded-full h-1.5">
+            <div
+              className={`h-1.5 rounded-full transition-all ${
+                w.utilization >= 90 ? 'bg-red-500' :
+                w.utilization >= 70 ? 'bg-yellow-500' : color
+              }`}
+              style={{ width: `${Math.min(w.utilization, 100)}%` }}
+            />
+          </div>
+        </div>
+      ))}
+      {usage.extra_usage && (
+        <div className="flex justify-between text-[10px] text-gray-600 pt-0.5">
+          <span>Extra credits</span>
+          <span className="tabular-nums">
+            {fmtUsd(usage.extra_usage.used_credits)} / {fmtUsd(usage.extra_usage.monthly_limit)} {usage.extra_usage.currency}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function QuotaBar({ quota, accent }) {
   if (!quota) return null
   const { plan, hard_limit_usd, used_usd } = quota
@@ -131,6 +186,7 @@ export function ProviderCard({ variant, data }) {
         <StatRow label="Output" value={fmt(today.output_tokens)} />
       </div>
 
+      <UsageWindows usage={data?.usage} accent={v.accent} />
       <QuotaBar quota={data?.quota} accent={v.accent} />
       <ModelFooter byModel={data?.by_model} />
     </div>
