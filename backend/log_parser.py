@@ -15,7 +15,7 @@ SUPPORTED_PROVIDERS = {"anthropic", "openai"}
 def _empty_provider() -> dict:
     return {
         "today": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
-        "history": {},
+        "history": [],
     }
 
 
