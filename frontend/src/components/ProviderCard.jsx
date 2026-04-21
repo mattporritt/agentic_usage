@@ -1,3 +1,75 @@
+import { useState, useCallback, useRef } from 'react'
+
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+
+function Tooltip({ text, children }) {
+  const [rect, setRect] = useState(null)
+  const timerRef = useRef(null)
+
+  const show = useCallback((e) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    timerRef.current = setTimeout(() => setRect(r), 220)
+  }, [])
+
+  const hide = useCallback(() => {
+    clearTimeout(timerRef.current)
+    setRect(null)
+  }, [])
+
+  if (!text) return children
+
+  // Flip below element if too close to top of viewport
+  const above = rect && rect.top > 80
+
+  return (
+    <>
+      <span
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        style={{ cursor: 'help', borderBottom: '1px dotted var(--text-3)', display: 'inline' }}
+      >
+        {children}
+      </span>
+
+      {rect && (
+        <div style={{
+          position: 'fixed',
+          left: Math.min(Math.max(rect.left + rect.width / 2, 130), window.innerWidth - 130),
+          top: above ? rect.top - 10 : rect.bottom + 10,
+          transform: above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+          background: '#0c1630',
+          border: '1px solid var(--border-hi)',
+          borderRadius: 8,
+          padding: '9px 13px',
+          width: 240,
+          fontSize: 11,
+          color: 'var(--text-2)',
+          lineHeight: 1.6,
+          pointerEvents: 'none',
+          zIndex: 1000,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.7)',
+        }}>
+          {text}
+          {/* Arrow */}
+          <div style={{
+            position: 'absolute',
+            [above ? 'bottom' : 'top']: -5,
+            left: '50%',
+            marginLeft: -4,
+            width: 8, height: 8,
+            background: '#0c1630',
+            borderRight: '1px solid var(--border-hi)',
+            borderBottom: above ? '1px solid var(--border-hi)' : 'none',
+            borderTop: above ? 'none' : '1px solid var(--border-hi)',
+            borderLeft: above ? 'none' : '1px solid var(--border-hi)',
+            transform: above ? 'rotate(45deg)' : 'rotate(225deg)',
+          }} />
+        </div>
+      )}
+    </>
+  )
+}
+
 // ─── Pricing table (per 1M tokens, USD) ──────────────────────────────────────
 const PRICING = {
   opus:          { input: 15,   output: 75,   cacheRead: 1.50 },
@@ -78,7 +150,6 @@ function calcBurnRate(pct, windowHours, resetIso) {
   return               { willExceed: false, projPct: Math.round(projPct) }
 }
 
-/** Normalise window hours into a short label: 5h → "5h", 168h → "7d" */
 function windowLabel(hours) {
   if (hours < 24) return `${hours}h`
   return `${Math.round(hours / 24)}d`
@@ -108,27 +179,18 @@ function fmtUsd(n) {
   return n < 0.01 ? '<$0.01' : `$${n.toFixed(2)}`
 }
 
-/**
- * Returns { relative, absolute } for a reset ISO timestamp.
- * relative: "in 45m" | "in 4h 59m" | "in 2d 3h"
- * absolute: "Mon 5 May, 14:30"
- */
 function formatReset(iso) {
   if (!iso) return null
   const diff = new Date(iso) - Date.now()
   if (diff <= 0) return { relative: 'now', absolute: null }
-
   const totalMins = Math.floor(diff / 60_000)
   const d = Math.floor(totalMins / 1440)
   const h = Math.floor((totalMins % 1440) / 60)
   const m = totalMins % 60
-
   const relative = d > 0 ? `in ${d}d ${h}h` : h > 0 ? `in ${h}h ${m}m` : `in ${m}m`
-
   const abs = new Date(iso)
   const absolute = abs.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
     + ', ' + abs.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
   return { relative, absolute }
 }
 
@@ -160,26 +222,26 @@ const VARIANTS = {
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
-function Label({ children, style }) {
-  return (
+function Label({ children, style, tip }) {
+  const inner = (
     <span style={{
       fontSize: 'var(--fs-micro)',
       letterSpacing: '0.11em',
       textTransform: 'uppercase',
-      color: 'var(--text-3)',
-      display: 'block',
+      color: tip ? 'var(--text-2)' : 'var(--text-3)',
+      display: 'inline-block',
       ...style,
     }}>
       {children}
     </span>
   )
+  return tip ? <div><Tooltip text={tip}>{inner}</Tooltip></div> : <div>{inner}</div>
 }
 
 function Rule() {
   return <div style={{ height: 1, background: 'var(--border)', margin: '0 -24px' }} />
 }
 
-/** Section header with a subtle background band for contrast */
 function SectionHeader({ children }) {
   return (
     <div style={{
@@ -196,13 +258,18 @@ function SectionHeader({ children }) {
 
 // ─── Stat grid ────────────────────────────────────────────────────────────────
 
+const STAT_TIPS = {
+  'Cached':    'Tokens served from the provider\'s prompt cache — processed at a fraction of the normal input cost.',
+  'Cache Hit': 'Percentage of input context served from cache. Higher means more of your prompts are being reused efficiently.',
+  'Output':    'Tokens generated by the model in response to your prompts. These are typically the most expensive.',
+}
+
 function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
-  const cacheLabel = 'Cached'
   const cacheValue = fmt(isClaudeCode ? today.cache_read_tokens : today.cached_tokens)
   const cells = [
-    { label: 'Input',    value: fmt(today.input_tokens),  hi: false },
-    { label: cacheLabel, value: cacheValue,               hi: false },
-    { label: 'Output',   value: fmt(today.output_tokens), hi: true  },
+    { label: 'Input',   value: fmt(today.input_tokens),  hi: false },
+    { label: 'Cached',  value: cacheValue,               hi: false },
+    { label: 'Output',  value: fmt(today.output_tokens), hi: true  },
     ...(efficiency != null
       ? [{ label: 'Cache Hit', value: `${efficiency}%`, hi: efficiency > 50 }]
       : [{ label: 'Total',     value: fmt(today.total_tokens), hi: false }]
@@ -212,7 +279,7 @@ function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 24px' }}>
       {cells.map(c => (
         <div key={c.label}>
-          <Label>{c.label}</Label>
+          <Label tip={STAT_TIPS[c.label]}>{c.label}</Label>
           <div style={{
             fontSize: 'var(--fs-value)',
             fontWeight: 500,
@@ -230,6 +297,12 @@ function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
 
 // ─── Rate limit bar with burn-rate projection ─────────────────────────────────
 
+function windowTip(hours) {
+  if (hours <= 5)  return `Short-burst rate limit window. Resets every ${hours} hours. Designed to prevent rapid bursts of high usage.`
+  if (hours <= 24) return `Daily rate limit window. Resets every ${hours} hours.`
+  return `Weekly rate limit window. Resets every ${Math.round(hours / 24)} days. Tracks sustained usage over a longer period.`
+}
+
 function RateBar({ w, accent }) {
   const burn      = calcBurnRate(w.pct, w.hours, w.reset)
   const reset     = formatReset(w.reset)
@@ -243,10 +316,23 @@ function RateBar({ w, accent }) {
     : burn.projPct >= 80 ? '#eab308'
     : 'var(--text-3)'
 
+  const projTip = burn?.willExceed
+    ? `At your current rate you'll exhaust this window ~${fmtMs(burn.msToLimit)} before it resets. Requests will be throttled until the reset time.`
+    : burn
+      ? `Linear projection based on usage since this window opened. The faded bar shows projected usage at reset time.`
+      : null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <Label style={{ whiteSpace: 'nowrap' }}>{windowLabel(w.hours)} window</Label>
+        <Tooltip text={windowTip(w.hours)}>
+          <span style={{
+            fontSize: 'var(--fs-micro)', letterSpacing: '0.11em', textTransform: 'uppercase',
+            color: 'var(--text-2)', cursor: 'help', borderBottom: '1px dotted var(--text-3)',
+          }}>
+            {windowLabel(w.hours)} window
+          </span>
+        </Tooltip>
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
             {w.pct.toFixed(0)}%
@@ -278,15 +364,19 @@ function RateBar({ w, accent }) {
         }} />
       </div>
 
-      {/* Burn rate + absolute reset date on same row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
         {burn ? (
-          <span style={{ fontSize: 'var(--fs-micro)', color: burnColor, fontVariantNumeric: 'tabular-nums' }}>
-            {burn.willExceed
-              ? `⚡ limit in ~${fmtMs(burn.msToLimit)}`
-              : `→ proj ${burn.projPct}% at reset`
-            }
-          </span>
+          <Tooltip text={projTip}>
+            <span style={{
+              fontSize: 'var(--fs-micro)', color: burnColor, fontVariantNumeric: 'tabular-nums',
+              cursor: 'help', borderBottom: `1px dotted ${burnColor}`,
+            }}>
+              {burn.willExceed
+                ? `⚡ limit in ~${fmtMs(burn.msToLimit)}`
+                : `→ proj ${burn.projPct}% at reset`
+              }
+            </span>
+          </Tooltip>
         ) : <span />}
         {reset?.absolute && (
           <span style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
@@ -394,6 +484,10 @@ export function ProviderCard({ variant, data }) {
   const savings      = cacheSavings(today, byModel)
   const hasModels    = Object.keys(byModel).length > 0
 
+  const costTip = 'Estimated from your 30-day model mix and current provider pricing. Cached tokens are charged at the lower cache-read rate.'
+  const savingsTip = `Saving from Anthropic's prompt cache — the difference between what these tokens would cost at full input price vs the cache-read rate.`
+  const extraCreditsTip = 'Pay-as-you-go credits consumed beyond your plan\'s included token allowance.'
+
   return (
     <div className="card-enter" style={{
       background: 'var(--surface)',
@@ -425,8 +519,7 @@ export function ProviderCard({ variant, data }) {
             <span style={{
               fontSize: 'var(--fs-micro)', letterSpacing: '0.12em', textTransform: 'uppercase',
               padding: '3px 8px', borderRadius: 3,
-              border: `1px solid ${v.accent}35`,
-              color: v.accentText,
+              border: `1px solid ${v.accent}35`, color: v.accentText,
             }}>
               {data.plan.subscription_type}
             </span>
@@ -466,7 +559,16 @@ export function ProviderCard({ variant, data }) {
             }}>
               {fmtUsd(cost)}
             </div>
-            <Label style={{ marginTop: 6 }}>est. cost today</Label>
+            <div style={{ marginTop: 6 }}>
+              <Tooltip text={costTip}>
+                <span style={{
+                  fontSize: 'var(--fs-micro)', letterSpacing: '0.11em', textTransform: 'uppercase',
+                  color: 'var(--text-2)', cursor: 'help', borderBottom: '1px dotted var(--text-3)',
+                }}>
+                  est. cost today
+                </span>
+              </Tooltip>
+            </div>
           </div>
         )}
       </div>
@@ -476,9 +578,14 @@ export function ProviderCard({ variant, data }) {
       <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <StatGrid today={today} isClaudeCode={isClaudeCode} efficiency={efficiency} accentText={v.accentText} />
         {savings != null && savings > 0.01 && (
-          <p style={{ margin: 0, fontSize: 'var(--fs-micro)', color: 'var(--text-3)', lineHeight: 1.4 }}>
-            ↓ cache saved ~{fmtUsd(savings)} vs uncached today
-          </p>
+          <Tooltip text={savingsTip}>
+            <p style={{
+              margin: 0, fontSize: 'var(--fs-micro)', color: 'var(--text-3)', lineHeight: 1.4,
+              cursor: 'help', borderBottom: '1px dotted var(--text-3)', display: 'inline-block',
+            }}>
+              ↓ cache saved ~{fmtUsd(savings)} vs uncached today
+            </p>
+          </Tooltip>
         )}
       </div>
 
@@ -490,7 +597,9 @@ export function ProviderCard({ variant, data }) {
             {windows.map((w, i) => <RateBar key={i} w={w} accent={v.accent} />)}
             {data?.usage?.extra_usage && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-body)', color: 'var(--text-3)', paddingTop: 4 }}>
-                <span>Extra credits</span>
+                <Tooltip text={extraCreditsTip}>
+                  <span style={{ cursor: 'help', borderBottom: '1px dotted var(--text-3)' }}>Extra credits</span>
+                </Tooltip>
                 <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>
                   {fmtUsd(data.usage.extra_usage.used_credits)} / {fmtUsd(data.usage.extra_usage.monthly_limit)} {data.usage.extra_usage.currency}
                 </span>
