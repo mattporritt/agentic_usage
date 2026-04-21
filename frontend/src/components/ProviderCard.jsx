@@ -197,7 +197,7 @@ function SectionHeader({ children }) {
 // ─── Stat grid ────────────────────────────────────────────────────────────────
 
 function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
-  const cacheLabel = isClaudeCode ? 'Cache Read' : 'Cached'
+  const cacheLabel = 'Cached'
   const cacheValue = fmt(isClaudeCode ? today.cache_read_tokens : today.cached_tokens)
   const cells = [
     { label: 'Input',    value: fmt(today.input_tokens),  hi: false },
