@@ -16,9 +16,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
-RUN mkdir -p /app/logs
+# Mount points — actual content comes from host volume mounts at runtime.
+# /data  — SQLite persistence (read-write)
+# /logs  — optional external log files (read-only)
+# /claude — host ~/.claude directory (read-only)
+# /codex  — host ~/.codex directory (read-only)
+RUN mkdir -p /data /logs /claude /codex
 
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    DB_PATH=/data/usage.db \
+    CLAUDE_CODE_DIR=/claude \
+    CODEX_DIR=/codex \
+    LOG_DIR=/logs
 
 EXPOSE 8000
 

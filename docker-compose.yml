@@ -6,10 +6,17 @@ services:
     env_file:
       - .env
     volumes:
-      - ${LOG_DIR:-./logs}:/app/logs:ro
+      # Host ~/.claude contains JSONL session logs parsed for usage data.
+      - ${CLAUDE_HOST_DIR:-~/.claude}:/claude:ro
+      # Host ~/.codex contains auth.json (JWT with plan info) and session logs.
+      - ${CODEX_HOST_DIR:-~/.codex}:/codex:ro
+      # SQLite database — persists across container restarts.
+      - ${DATA_DIR:-./data}:/data
+      # Optional: external log files (e.g. from other tools writing to a shared dir).
+      - ${LOG_DIR:-./logs}:/logs:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
