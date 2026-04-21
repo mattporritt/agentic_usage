@@ -8,8 +8,9 @@ function buildChartData(claudeCodeHistory, codexHistory, days) {
   const dateMap = {}
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now)
-    d.setUTCDate(d.getUTCDate() - i)
-    const key = d.toISOString().slice(0, 10)
+    d.setDate(d.getDate() - i)
+    // Use local date string to match backend's local-time bucketing
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
     dateMap[key] = { date: key, claude_code: 0, codex: 0 }
   }
   ;(claudeCodeHistory || []).forEach(({ date, output_tokens = 0 }) => {

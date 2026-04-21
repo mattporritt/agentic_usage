@@ -78,13 +78,19 @@ function calcBurnRate(pct, windowHours, resetIso) {
   return               { willExceed: false, projPct: Math.round(projPct) }
 }
 
+/** Normalise window hours into a short label: 5h → "5h", 168h → "7d" */
+function windowLabel(hours) {
+  if (hours < 24) return `${hours}h`
+  return `${Math.round(hours / 24)}d`
+}
+
 function getWindows(usage) {
   if (!usage) return []
   return [
-    usage.five_hour  && { label: '5h',  windowHours: 5,                        pct: usage.five_hour.utilization,  reset: usage.five_hour.resets_at },
-    usage.seven_day  && { label: '7d',  windowHours: 168,                      pct: usage.seven_day.utilization,  reset: usage.seven_day.resets_at },
-    usage.primary    && { label: `${usage.primary.window_hours}h`,   windowHours: usage.primary.window_hours,   pct: usage.primary.used_percent,   reset: usage.primary.reset_at },
-    usage.secondary  && { label: `${usage.secondary.window_hours}h`, windowHours: usage.secondary.window_hours, pct: usage.secondary.used_percent, reset: usage.secondary.reset_at },
+    usage.five_hour  && { hours: 5,                        pct: usage.five_hour.utilization,  reset: usage.five_hour.resets_at },
+    usage.seven_day  && { hours: 168,                      pct: usage.seven_day.utilization,  reset: usage.seven_day.resets_at },
+    usage.primary    && { hours: usage.primary.window_hours,   pct: usage.primary.used_percent,   reset: usage.primary.reset_at },
+    usage.secondary  && { hours: usage.secondary.window_hours, pct: usage.secondary.used_percent, reset: usage.secondary.reset_at },
   ].filter(Boolean)
 }
 
@@ -102,13 +108,28 @@ function fmtUsd(n) {
   return n < 0.01 ? '<$0.01' : `$${n.toFixed(2)}`
 }
 
-function timeUntil(iso) {
+/**
+ * Returns { relative, absolute } for a reset ISO timestamp.
+ * relative: "in 45m" | "in 4h 59m" | "in 2d 3h"
+ * absolute: "Mon 5 May, 14:30"
+ */
+function formatReset(iso) {
   if (!iso) return null
   const diff = new Date(iso) - Date.now()
-  if (diff <= 0) return 'now'
-  const h = Math.floor(diff / 3_600_000)
-  const m = Math.floor((diff % 3_600_000) / 60_000)
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
+  if (diff <= 0) return { relative: 'now', absolute: null }
+
+  const totalMins = Math.floor(diff / 60_000)
+  const d = Math.floor(totalMins / 1440)
+  const h = Math.floor((totalMins % 1440) / 60)
+  const m = totalMins % 60
+
+  const relative = d > 0 ? `in ${d}d ${h}h` : h > 0 ? `in ${h}h ${m}m` : `in ${m}m`
+
+  const abs = new Date(iso)
+  const absolute = abs.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+    + ', ' + abs.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+  return { relative, absolute }
 }
 
 function fmtMs(ms) {
@@ -137,13 +158,12 @@ const VARIANTS = {
   },
 }
 
-// ─── Shared style helpers ─────────────────────────────────────────────────────
+// ─── Primitives ───────────────────────────────────────────────────────────────
 
-/** Accessible micro-label — 11px, --text-3 (4.8:1 contrast) */
 function Label({ children, style }) {
   return (
     <span style={{
-      fontSize: 11,
+      fontSize: 'var(--fs-micro)',
       letterSpacing: '0.11em',
       textTransform: 'uppercase',
       color: 'var(--text-3)',
@@ -159,12 +179,26 @@ function Rule() {
   return <div style={{ height: 1, background: 'var(--border)', margin: '0 -24px' }} />
 }
 
+/** Section header with a subtle background band for contrast */
+function SectionHeader({ children }) {
+  return (
+    <div style={{
+      margin: '0 -24px',
+      padding: '7px 24px',
+      background: 'rgba(255,255,255,0.025)',
+      borderTop: '1px solid var(--border)',
+      borderBottom: '1px solid var(--border)',
+    }}>
+      <Label style={{ color: 'var(--text-2)' }}>{children}</Label>
+    </div>
+  )
+}
+
 // ─── Stat grid ────────────────────────────────────────────────────────────────
 
 function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
   const cacheLabel = isClaudeCode ? 'Cache Read' : 'Cached'
   const cacheValue = fmt(isClaudeCode ? today.cache_read_tokens : today.cached_tokens)
-
   const cells = [
     { label: 'Input',    value: fmt(today.input_tokens),  hi: false },
     { label: cacheLabel, value: cacheValue,               hi: false },
@@ -174,14 +208,13 @@ function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
       : [{ label: 'Total',     value: fmt(today.total_tokens), hi: false }]
     ),
   ]
-
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 24px' }}>
       {cells.map(c => (
         <div key={c.label}>
           <Label>{c.label}</Label>
           <div style={{
-            fontSize: 15,
+            fontSize: 'var(--fs-value)',
             fontWeight: 500,
             marginTop: 4,
             color: c.hi ? accentText : 'var(--text-1)',
@@ -198,7 +231,8 @@ function StatGrid({ today, isClaudeCode, efficiency, accentText }) {
 // ─── Rate limit bar with burn-rate projection ─────────────────────────────────
 
 function RateBar({ w, accent }) {
-  const burn      = calcBurnRate(w.pct, w.windowHours, w.reset)
+  const burn      = calcBurnRate(w.pct, w.hours, w.reset)
+  const reset     = formatReset(w.reset)
   const fillColor = w.pct >= 90 ? '#ef4444' : w.pct >= 70 ? '#eab308' : accent
   const ghostColor = !burn ? null
     : burn.willExceed    ? 'rgba(239,68,68,0.28)'
@@ -211,16 +245,18 @@ function RateBar({ w, accent }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Label style={{ fontSize: 11 }}>{w.label} window</Label>
-        <span style={{ fontSize: 12, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
-          {w.pct.toFixed(0)}%
-          {w.reset && (
-            <span style={{ color: 'var(--text-3)', marginLeft: 8 }}>
-              · resets {timeUntil(w.reset)}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <Label style={{ whiteSpace: 'nowrap' }}>{windowLabel(w.hours)} window</Label>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
+            {w.pct.toFixed(0)}%
+          </span>
+          {reset && (
+            <span style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-3)', marginLeft: 8 }}>
+              resets {reset.relative}
             </span>
           )}
-        </span>
+        </div>
       </div>
 
       <div style={{
@@ -242,14 +278,22 @@ function RateBar({ w, accent }) {
         }} />
       </div>
 
-      {burn && (
-        <div style={{ fontSize: 12, color: burnColor, fontVariantNumeric: 'tabular-nums' }}>
-          {burn.willExceed
-            ? `⚡ limit in ~${fmtMs(burn.msToLimit)} at current rate`
-            : `→ proj ${burn.projPct}% at reset`
-          }
-        </div>
-      )}
+      {/* Burn rate + absolute reset date on same row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        {burn ? (
+          <span style={{ fontSize: 'var(--fs-micro)', color: burnColor, fontVariantNumeric: 'tabular-nums' }}>
+            {burn.willExceed
+              ? `⚡ limit in ~${fmtMs(burn.msToLimit)}`
+              : `→ proj ${burn.projPct}% at reset`
+            }
+          </span>
+        ) : <span />}
+        {reset?.absolute && (
+          <span style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
+            {reset.absolute}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -264,17 +308,13 @@ function QuotaSection({ quota, accent }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <Label>{plan || 'Subscription'}</Label>
         {hard_limit_usd != null
-          ? <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtUsd(used_usd)} / {fmtUsd(hard_limit_usd)}</span>
-          : <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{fmtUsd(used_usd) ?? '—'} used</span>
+          ? <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-2)' }}>{fmtUsd(used_usd)} / {fmtUsd(hard_limit_usd)}</span>
+          : <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-3)' }}>{fmtUsd(used_usd) ?? '—'} used</span>
         }
       </div>
       {pct != null && (
         <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
-          <div style={{
-            height: '100%', width: `${pct}%`,
-            background: pct > 85 ? '#ef4444' : accent,
-            borderRadius: 2,
-          }} />
+          <div style={{ height: '100%', width: `${pct}%`, background: pct > 85 ? '#ef4444' : accent, borderRadius: 2 }} />
         </div>
       )}
     </div>
@@ -288,12 +328,10 @@ function ModelFooter({ byModel }) {
     .filter(([, u]) => u.output_tokens > 0 || u.input_tokens > 0)
     .sort((a, b) => (b[1].output_tokens + b[1].input_tokens) - (a[1].output_tokens + a[1].input_tokens))
   if (!entries.length) return null
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <Label>30-day by model</Label>
       {entries.map(([model, u]) => (
-        <div key={model} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+        <div key={model} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-body)' }}>
           <span style={{
             color: 'var(--text-2)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '46%',
@@ -326,21 +364,21 @@ export function ProviderCard({ variant, data }) {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <span style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
+            fontSize: 'var(--fs-label)', fontWeight: 700, letterSpacing: '0.18em',
             textTransform: 'uppercase', fontFamily: 'var(--font-display)',
             color: v.accentText,
           }}>
             {v.label}
           </span>
           <span style={{
-            fontSize: 10, padding: '3px 8px',
+            fontSize: 'var(--fs-micro)', padding: '3px 8px',
             border: '1px solid var(--border-hi)', borderRadius: 3,
             color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase',
           }}>
             Not found
           </span>
         </div>
-        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 'var(--fs-body)', color: 'var(--text-2)', lineHeight: 1.5 }}>
           {data?.error || 'Install the CLI or set the directory in .env'}
         </p>
       </div>
@@ -354,6 +392,7 @@ export function ProviderCard({ variant, data }) {
   const cost         = estimateCost(today, byModel)
   const efficiency   = cacheEfficiency(today, isClaudeCode)
   const savings      = cacheSavings(today, byModel)
+  const hasModels    = Object.keys(byModel).length > 0
 
   return (
     <div className="card-enter" style={{
@@ -362,7 +401,7 @@ export function ProviderCard({ variant, data }) {
       borderTop: `2px solid ${v.accent}`,
       borderRadius: 12,
       overflow: 'hidden',
-      boxShadow: `0 0 60px ${v.accentDim}, inset 0 1px 0 rgba(255,255,255,0.03)`,
+      boxShadow: `0 0 60px ${v.accentDim}, inset 0 1px 0 rgba(255,255,255,0.04)`,
       display: 'flex',
       flexDirection: 'column',
     }}>
@@ -370,12 +409,12 @@ export function ProviderCard({ variant, data }) {
       {/* ── Card header ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '13px 24px',
+        padding: '12px 24px',
         background: v.accentDim,
         borderBottom: '1px solid var(--border)',
       }}>
         <span style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
+          fontSize: 'var(--fs-label)', fontWeight: 700, letterSpacing: '0.18em',
           textTransform: 'uppercase', fontFamily: 'var(--font-display)',
           color: v.accentText,
         }}>
@@ -384,7 +423,7 @@ export function ProviderCard({ variant, data }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {data?.plan?.subscription_type && (
             <span style={{
-              fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+              fontSize: 'var(--fs-micro)', letterSpacing: '0.12em', textTransform: 'uppercase',
               padding: '3px 8px', borderRadius: 3,
               border: `1px solid ${v.accent}35`,
               color: v.accentText,
@@ -401,95 +440,86 @@ export function ProviderCard({ variant, data }) {
         </div>
       </div>
 
-      {/* ── Card body ── */}
-      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-        {/* Hero: total tokens + cost */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <div style={{
-              fontSize: 38,
-              fontWeight: 700,
-              lineHeight: 1,
-              color: v.accentText,
-              fontFamily: 'var(--font-display)',
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '-0.02em',
-            }}>
-              {fmt(today.total_tokens)}
-            </div>
-            <Label style={{ marginTop: 6 }}>tokens today</Label>
+      {/* ── Hero row ── */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16,
+        padding: '20px 24px 18px',
+      }}>
+        <div>
+          <div style={{
+            fontSize: 'var(--fs-hero)',
+            fontWeight: 700, lineHeight: 1,
+            color: v.accentText, fontFamily: 'var(--font-display)',
+            fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em',
+          }}>
+            {fmt(today.total_tokens)}
           </div>
-
-          {cost != null && (
-            <div style={{ textAlign: 'right' }}>
-              <div style={{
-                fontSize: 26,
-                fontWeight: 600,
-                lineHeight: 1,
-                color: 'var(--text-1)',
-                fontFamily: 'var(--font-display)',
-                fontVariantNumeric: 'tabular-nums',
-              }}>
-                {fmtUsd(cost)}
-              </div>
-              <Label style={{ marginTop: 6 }}>est. cost today</Label>
-            </div>
-          )}
+          <Label style={{ marginTop: 6 }}>tokens today</Label>
         </div>
+        {cost != null && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{
+              fontSize: 'var(--fs-large)',
+              fontWeight: 600, lineHeight: 1,
+              color: 'var(--text-1)', fontFamily: 'var(--font-display)',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {fmtUsd(cost)}
+            </div>
+            <Label style={{ marginTop: 6 }}>est. cost today</Label>
+          </div>
+        )}
+      </div>
 
-        <Rule />
-
-        {/* Token breakdown grid */}
-        <StatGrid
-          today={today}
-          isClaudeCode={isClaudeCode}
-          efficiency={efficiency}
-          accentText={v.accentText}
-        />
-
+      {/* ── Token breakdown ── */}
+      <Rule />
+      <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <StatGrid today={today} isClaudeCode={isClaudeCode} efficiency={efficiency} accentText={v.accentText} />
         {savings != null && savings > 0.01 && (
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.4 }}>
+          <p style={{ margin: 0, fontSize: 'var(--fs-micro)', color: 'var(--text-3)', lineHeight: 1.4 }}>
             ↓ cache saved ~{fmtUsd(savings)} vs uncached today
           </p>
         )}
-
-        {/* Rate limits */}
-        {windows.length > 0 && (
-          <>
-            <Rule />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Label>Rate limit usage</Label>
-              {windows.map(w => <RateBar key={w.label} w={w} accent={v.accent} />)}
-              {data?.usage?.extra_usage && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)' }}>
-                  <span>Extra credits</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>
-                    {fmtUsd(data.usage.extra_usage.used_credits)} / {fmtUsd(data.usage.extra_usage.monthly_limit)} {data.usage.extra_usage.currency}
-                  </span>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Quota */}
-        {data?.quota && (
-          <>
-            <Rule />
-            <QuotaSection quota={data.quota} accent={v.accent} />
-          </>
-        )}
-
-        {/* Model breakdown */}
-        {Object.keys(byModel).length > 0 && (
-          <>
-            <Rule />
-            <ModelFooter byModel={byModel} />
-          </>
-        )}
-
       </div>
+
+      {/* ── Rate limits ── */}
+      {windows.length > 0 && (
+        <>
+          <SectionHeader>Rate limit usage</SectionHeader>
+          <div style={{ padding: '14px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {windows.map((w, i) => <RateBar key={i} w={w} accent={v.accent} />)}
+            {data?.usage?.extra_usage && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-body)', color: 'var(--text-3)', paddingTop: 4 }}>
+                <span>Extra credits</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>
+                  {fmtUsd(data.usage.extra_usage.used_credits)} / {fmtUsd(data.usage.extra_usage.monthly_limit)} {data.usage.extra_usage.currency}
+                </span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Quota ── */}
+      {data?.quota && (
+        <>
+          <SectionHeader>Billing quota</SectionHeader>
+          <div style={{ padding: '14px 24px' }}>
+            <QuotaSection quota={data.quota} accent={v.accent} />
+          </div>
+        </>
+      )}
+
+      {/* ── Model breakdown ── */}
+      {hasModels && (
+        <>
+          <SectionHeader>30-day by model</SectionHeader>
+          <div style={{ padding: '14px 24px' }}>
+            <ModelFooter byModel={byModel} />
+          </div>
+        </>
+      )}
+
     </div>
   )
 }

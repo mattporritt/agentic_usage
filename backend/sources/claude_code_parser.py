@@ -64,7 +64,7 @@ async def parse_claude_code_sessions(claude_dir: str, days: int = HISTORY_DAYS) 
         result["error"] = f"Claude Code directory not found: {projects_dir}"
         return result
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now().astimezone()  # local timezone for day boundaries
     cutoff = now - timedelta(days=days)
     today_str = now.strftime("%Y-%m-%d")
 
@@ -100,7 +100,7 @@ async def parse_claude_code_sessions(claude_dir: str, days: int = HISTORY_DAYS) 
                 continue
 
             messages_parsed += 1
-            date_str = ts.strftime("%Y-%m-%d")
+            date_str = ts.astimezone().strftime("%Y-%m-%d")  # local date
 
             inp = usage.get("input_tokens", 0)
             cache_read = usage.get("cache_read_input_tokens", 0)

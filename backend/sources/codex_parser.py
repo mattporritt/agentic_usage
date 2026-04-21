@@ -62,7 +62,7 @@ def _parse_db(db_path: Path, cutoff: datetime, today_str: str) -> dict:
         if ts < cutoff:
             continue
 
-        date_str = ts.strftime("%Y-%m-%d")
+        date_str = ts.astimezone().strftime("%Y-%m-%d")  # local date
         inp = usage.get("input_tokens", 0)
         cached = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
         out = usage.get("output_tokens", 0)
@@ -107,7 +107,7 @@ async def parse_codex_sessions(codex_dir: str, days: int = HISTORY_DAYS) -> dict
         logger.debug("Codex DB not found: %s", db_path)
         return _empty_result(configured=False, error=f"Codex database not found: {db_path}")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now().astimezone()  # local timezone for day boundaries
     cutoff = now - timedelta(days=days)
     today_str = now.strftime("%Y-%m-%d")
 

@@ -52,6 +52,12 @@ async def health():
     return {"status": "ok"}
 
 
+@app.post("/api/refresh")
+async def force_refresh():
+    await refresh_all()
+    return await get_stats()
+
+
 @app.get("/api/stats")
 async def get_stats():
     return {

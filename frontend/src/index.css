@@ -3,19 +3,32 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-  --bg:          #03050e;
-  --surface:     #070c1a;
-  --surface-alt: #0b1228;
-  --border:      rgba(255, 255, 255, 0.07);
-  --border-hi:   rgba(255, 255, 255, 0.14);
+  /* ── Surface colours ── */
+  --bg:          #020610;
+  --surface:     #070d1c;
+  --surface-alt: #0c1428;
+  --border:      rgba(255, 255, 255, 0.09);
+  --border-hi:   rgba(255, 255, 255, 0.16);
 
-  /* Accessible text colours — all pass WCAG AA (4.5:1) on --surface */
-  --text-1: #e2eaf5;   /* 15.3:1  — primary values, numbers          */
-  --text-2: #8fa2bb;   /*  7.5:1  — secondary labels, model names     */
-  --text-3: #6b7f99;   /*  4.8:1  — tertiary micro-labels, timestamps */
+  /* ── Text — all pass WCAG AA (4.5:1) on --surface ──
+     text-1  #e2eaf5   15.3:1   primary values
+     text-2  #8fa2bb    7.5:1   secondary labels / model names
+     text-3  #6b7f99    4.8:1   micro-labels, timestamps          */
+  --text-1: #e2eaf5;
+  --text-2: #8fa2bb;
+  --text-3: #6b7f99;
 
+  /* ── Fonts ── */
   --font-display: 'Syncopate', sans-serif;
   --font-data:    'JetBrains Mono', 'Cascadia Code', monospace;
+
+  /* ── Responsive font scale (clamp: min | fluid | max) ── */
+  --fs-micro:  clamp(11px, 0.75vw, 13px);   /* section labels, "tokens today" */
+  --fs-body:   clamp(12px, 0.95vw, 15px);   /* general body text              */
+  --fs-value:  clamp(14px, 1.15vw, 18px);   /* stat grid values               */
+  --fs-large:  clamp(20px, 1.9vw, 30px);    /* cost / secondary hero          */
+  --fs-hero:   clamp(30px, 3.0vw, 50px);    /* primary token count            */
+  --fs-label:  clamp(10px, 0.75vw, 12px);   /* card-title / display font      */
 }
 
 body {
@@ -23,12 +36,12 @@ body {
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse 70% 40% at 50% -10%, rgba(249,115,22,0.05) 0%, transparent 55%),
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.032) 1px, transparent 1px);
   background-size: 100% 100%, 36px 36px, 36px 36px;
   color: var(--text-1);
   font-family: var(--font-data);
-  font-size: 14px;
+  font-size: var(--fs-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -48,6 +61,10 @@ body {
 }
 
 .card-enter { animation: fade-in-up 0.4s ease both; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 ::-webkit-scrollbar       { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -19,7 +19,7 @@ scheduler = AsyncIOScheduler()
 
 
 async def refresh_all() -> None:
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")  # local date
 
     try:
         cache["logs"].data = await parse_log_files(settings.log_dir)

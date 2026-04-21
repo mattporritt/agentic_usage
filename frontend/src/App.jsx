@@ -7,7 +7,7 @@ import { UsageChart } from './components/UsageChart'
 const TIME_WINDOWS = [7, 14, 30]
 
 export default function App() {
-  const { data, error, loading } = useStats()
+  const { data, error, loading, refreshing, forceRefresh } = useStats()
   const [days, setDays] = useState(14)
 
   if (loading) {
@@ -37,7 +37,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100svh' }}>
-      <Header lastUpdated={data?.last_updated} />
+      <Header lastUpdated={data?.last_updated} onRefresh={forceRefresh} refreshing={refreshing} />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, padding: 20 }}>
 
