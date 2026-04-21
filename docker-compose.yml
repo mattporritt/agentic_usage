@@ -5,11 +5,16 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # Tell the backend where to find the cookies file inside the container.
+      CLAUDE_COOKIES_PATH: /claude-cookies
     volumes:
       # Host ~/.claude contains JSONL session logs parsed for usage data.
       - ${CLAUDE_HOST_DIR:-~/.claude}:/claude:ro
       # Host ~/.codex contains auth.json (JWT with plan info) and session logs.
       - ${CODEX_HOST_DIR:-~/.codex}:/codex:ro
+      # Claude desktop app cookie store — needed to call the claude.ai rate-limit API.
+      - ${CLAUDE_APP_COOKIES:-~/Library/Application Support/Claude/Cookies}:/claude-cookies:ro
       # SQLite database — persists across container restarts.
       - ${DATA_DIR:-./data}:/data
       # Optional: external log files (e.g. from other tools writing to a shared dir).

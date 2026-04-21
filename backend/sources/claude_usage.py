@@ -21,9 +21,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_COOKIES_PATH = os.path.expanduser(
-    "~/Library/Application Support/Claude/Cookies"
-)
 _KEYCHAIN_SERVICE = "Claude Safe Storage"
 _KEYCHAIN_ACCOUNT = "Claude"
 
@@ -32,7 +29,27 @@ _cookie_cache: dict[str, str] = {}
 _cookie_mtime: float = 0.0
 
 
+def _cookies_path() -> str:
+    """Return the path to the Claude Electron cookie store.
+
+    Checks CLAUDE_COOKIES_PATH env var first (set for Docker), then falls
+    back to the standard macOS location.
+    """
+    env = os.environ.get("CLAUDE_COOKIES_PATH", "").strip()
+    if env:
+        return env
+    return os.path.expanduser("~/Library/Application Support/Claude/Cookies")
+
+
 def _keychain_password() -> bytes | None:
+    """Return the raw Keychain password used to derive the cookie decryption key.
+
+    Checks CLAUDE_SAFE_STORAGE_KEY env var first (set by init_plan.sh for Docker),
+    then falls back to reading from macOS Keychain directly.
+    """
+    env = os.environ.get("CLAUDE_SAFE_STORAGE_KEY", "").strip()
+    if env:
+        return env.encode()
     if platform.system() != "Darwin":
         return None
     try:
@@ -80,11 +97,12 @@ def _load_cookies() -> dict[str, str]:
     """Read and decrypt claude.ai cookies from the Electron cookie store."""
     global _cookie_cache, _cookie_mtime
 
-    if not os.path.exists(_COOKIES_PATH):
+    path = _cookies_path()
+    if not os.path.exists(path):
         return {}
 
     try:
-        mtime = os.path.getmtime(_COOKIES_PATH)
+        mtime = os.path.getmtime(path)
     except OSError:
         return {}
 
@@ -98,7 +116,7 @@ def _load_cookies() -> dict[str, str]:
 
     tmp = tempfile.mktemp(suffix=".db")
     try:
-        shutil.copy2(_COOKIES_PATH, tmp)
+        shutil.copy2(path, tmp)
         conn = sqlite3.connect(tmp)
         rows = conn.execute(
             "SELECT name, encrypted_value FROM cookies "
