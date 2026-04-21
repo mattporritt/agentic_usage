@@ -1,47 +1,59 @@
 import { useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 
 function Tooltip({ text, children }) {
-  const [rect, setRect] = useState(null)
+  const [anchor, setAnchor] = useState(null)
   const timerRef = useRef(null)
+  const spanRef = useRef(null)
 
-  const show = useCallback((e) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    timerRef.current = setTimeout(() => setRect(r), 220)
+  const onEnter = useCallback(() => {
+    timerRef.current = setTimeout(() => {
+      if (spanRef.current) setAnchor(spanRef.current.getBoundingClientRect())
+    }, 220)
   }, [])
 
-  const hide = useCallback(() => {
+  const onLeave = useCallback(() => {
     clearTimeout(timerRef.current)
-    setRect(null)
+    setAnchor(null)
   }, [])
 
   if (!text) return children
 
-  // Flip below element if too close to top of viewport
-  const above = rect && rect.top > 80
+  // Show above element if there's room, otherwise below
+  const above = anchor && anchor.top > 120
 
   return (
     <>
       <span
-        onMouseEnter={show}
-        onMouseLeave={hide}
+        ref={spanRef}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
         style={{ cursor: 'help', borderBottom: '1px dotted var(--text-3)', display: 'inline' }}
       >
         {children}
       </span>
 
-      {rect && (
+      {anchor && createPortal((() => {
+        const TIP_W = 240
+        const TIP_MAX_H = 100
+        const PAD = 8
+        const GAP = 12
+        const cx = Math.min(Math.max(anchor.left + anchor.width / 2, TIP_W / 2 + PAD), window.innerWidth - TIP_W / 2 - PAD)
+        const tipTop = above
+          ? anchor.top - GAP - TIP_MAX_H
+          : anchor.bottom + GAP
+        return (
         <div style={{
           position: 'fixed',
-          left: Math.min(Math.max(rect.left + rect.width / 2, 130), window.innerWidth - 130),
-          top: above ? rect.top - 10 : rect.bottom + 10,
-          transform: above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+          left: cx - TIP_W / 2,
+          top: tipTop,
+          width: TIP_W,
           background: '#0c1630',
           border: '1px solid var(--border-hi)',
           borderRadius: 8,
           padding: '9px 13px',
-          width: 240,
           fontSize: 11,
           color: 'var(--text-2)',
           lineHeight: 1.6,
@@ -50,12 +62,11 @@ function Tooltip({ text, children }) {
           boxShadow: '0 10px 30px rgba(0,0,0,0.7)',
         }}>
           {text}
-          {/* Arrow */}
+          {/* Arrow pointing toward trigger element */}
           <div style={{
             position: 'absolute',
             [above ? 'bottom' : 'top']: -5,
-            left: '50%',
-            marginLeft: -4,
+            left: Math.round(anchor.left + anchor.width / 2 - (cx - TIP_W / 2)) - 4,
             width: 8, height: 8,
             background: '#0c1630',
             borderRight: '1px solid var(--border-hi)',
@@ -65,7 +76,8 @@ function Tooltip({ text, children }) {
             transform: above ? 'rotate(45deg)' : 'rotate(225deg)',
           }} />
         </div>
-      )}
+        )
+      })(), document.body)}
     </>
   )
 }
