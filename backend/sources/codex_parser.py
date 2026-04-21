@@ -27,7 +27,9 @@ def _empty_result(configured: bool = True, error: str | None = None) -> dict:
 
 def _parse_db(db_path: Path, cutoff: datetime, today_str: str) -> dict:
     """Read logs_2.sqlite and aggregate token usage from response.completed entries."""
-    conn = sqlite3.connect(str(db_path))
+    # immutable=1 prevents SQLite from creating WAL/lock files — required when
+    # the file is on a read-only volume mount (e.g. Docker :ro).
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro&immutable=1", uri=True)
     try:
         rows = conn.execute(
             "SELECT ts, feedback_log_body FROM logs "
