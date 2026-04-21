@@ -5,7 +5,9 @@ Extracts token usage from response.completed log entries.
 import json
 import logging
 import re
+import shutil
 import sqlite3
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -26,17 +28,29 @@ def _empty_result(configured: bool = True, error: str | None = None) -> dict:
 
 
 def _parse_db(db_path: Path, cutoff: datetime, today_str: str) -> dict:
-    """Read logs_2.sqlite and aggregate token usage from response.completed entries."""
-    # immutable=1 prevents SQLite from creating WAL/lock files — required when
-    # the file is on a read-only volume mount (e.g. Docker :ro).
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro&immutable=1", uri=True)
+    """Read logs_2.sqlite and aggregate token usage from response.completed entries.
+
+    Copies the DB + WAL + SHM files to a temp directory before opening so that:
+    - SQLite can write lock files (not possible on a read-only volume mount), and
+    - We see uncommitted WAL data that immutable=1 mode would skip.
+    """
+    tmp_dir = tempfile.mkdtemp(prefix="codex_db_")
     try:
-        rows = conn.execute(
-            "SELECT ts, feedback_log_body FROM logs "
-            "WHERE feedback_log_body LIKE '%response.completed%'"
-        ).fetchall()
+        for suffix in ("", "-shm", "-wal"):
+            src = Path(str(db_path) + suffix)
+            if src.exists():
+                shutil.copy2(src, tmp_dir)
+        tmp_db = Path(tmp_dir) / db_path.name
+        conn = sqlite3.connect(str(tmp_db))
+        try:
+            rows = conn.execute(
+                "SELECT ts, feedback_log_body FROM logs "
+                "WHERE feedback_log_body LIKE '%response.completed%'"
+            ).fetchall()
+        finally:
+            conn.close()
     finally:
-        conn.close()
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
     daily: dict[str, dict] = {}
     by_model: dict[str, dict] = {}

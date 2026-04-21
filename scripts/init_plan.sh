@@ -19,6 +19,11 @@ CLAUDE_SUBSCRIPTION_TYPE=""
 CLAUDE_RATE_LIMIT_TIER=""
 CLAUDE_SAFE_STORAGE_KEY=""
 
+# ── Host timezone ─────────────────────────────────────────────────────────────
+# Docker containers default to UTC. Passing TZ ensures day-boundary bucketing
+# inside the container matches the host's local date, not UTC midnight.
+HOST_TZ=$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||' || echo "UTC")
+
 if ! command -v security &>/dev/null; then
   echo "Error: 'security' command not found. This script requires macOS."
   exit 1
@@ -49,6 +54,7 @@ CLAUDE_SAFE_STORAGE_KEY=$(security find-generic-password \
 echo "Claude plan:              ${CLAUDE_SUBSCRIPTION_TYPE:-<not found>}"
 echo "Claude tier:              ${CLAUDE_RATE_LIMIT_TIER:-<not found>}"
 echo "Claude Safe Storage key:  ${CLAUDE_SAFE_STORAGE_KEY:+found}${CLAUDE_SAFE_STORAGE_KEY:-<not found>}"
+echo "Host timezone:            ${HOST_TZ}"
 
 if [[ -z "$CLAUDE_SUBSCRIPTION_TYPE" ]]; then
   echo ""
@@ -63,6 +69,7 @@ fi
 if $PRINT_ONLY; then
   echo ""
   echo "# Add these to your .env:"
+  echo "TZ=${HOST_TZ}"
   echo "CLAUDE_SUBSCRIPTION_TYPE=${CLAUDE_SUBSCRIPTION_TYPE}"
   echo "CLAUDE_RATE_LIMIT_TIER=${CLAUDE_RATE_LIMIT_TIER}"
   echo "CLAUDE_SAFE_STORAGE_KEY=${CLAUDE_SAFE_STORAGE_KEY}"
@@ -83,6 +90,7 @@ _upsert() {
   fi
 }
 
+_upsert "TZ"                       "$HOST_TZ"                  "$ENV_FILE"
 _upsert "CLAUDE_SUBSCRIPTION_TYPE" "$CLAUDE_SUBSCRIPTION_TYPE" "$ENV_FILE"
 _upsert "CLAUDE_RATE_LIMIT_TIER"   "$CLAUDE_RATE_LIMIT_TIER"   "$ENV_FILE"
 _upsert "CLAUDE_SAFE_STORAGE_KEY"  "$CLAUDE_SAFE_STORAGE_KEY"  "$ENV_FILE"
