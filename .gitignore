@@ -9,3 +9,5 @@ logs/*.jsonl
 node_modules/
 frontend/dist/
 data/
+.claude/
+*.png
