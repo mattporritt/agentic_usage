@@ -3,7 +3,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 
-function buildChartData(claudeCodeHistory, codexHistory, days) {
+function buildChartData(claudeCodeHistory, codexHistory, days, claudeCodeToday, codexToday) {
   const now = new Date()
   const dateMap = {}
   for (let i = days - 1; i >= 0; i--) {
@@ -18,7 +18,19 @@ function buildChartData(claudeCodeHistory, codexHistory, days) {
   ;(codexHistory || []).forEach(({ date, input_tokens = 0, output_tokens = 0 }) => {
     if (dateMap[date]) dateMap[date].codex = input_tokens + output_tokens
   })
-  return Object.values(dateMap).map(d => ({ ...d, date: d.date.slice(5) }))
+  // today is not in the history arrays — inject it directly
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  if (claudeCodeToday && dateMap[todayKey]) {
+    dateMap[todayKey].claude_code = claudeCodeToday.output_tokens || 0
+  }
+  if (codexToday && dateMap[todayKey]) {
+    dateMap[todayKey].codex = (codexToday.input_tokens || 0) + (codexToday.output_tokens || 0)
+  }
+  // Display as DD-MM
+  return Object.values(dateMap).map(d => ({
+    ...d,
+    date: d.date.slice(8) + '-' + d.date.slice(5, 7),
+  }))
 }
 
 function fmtY(v) {
@@ -50,8 +62,8 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
-export function UsageChart({ claudeCodeHistory, codexHistory, days }) {
-  const chartData = buildChartData(claudeCodeHistory, codexHistory, days)
+export function UsageChart({ claudeCodeHistory, codexHistory, claudeCodeToday, codexToday, days }) {
+  const chartData = buildChartData(claudeCodeHistory, codexHistory, days, claudeCodeToday, codexToday)
 
   return (
     <ResponsiveContainer width="100%" height="100%">

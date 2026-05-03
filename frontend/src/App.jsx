@@ -95,6 +95,8 @@ export default function App() {
             <UsageChart
               claudeCodeHistory={data?.claude_code?.history}
               codexHistory={data?.codex?.history}
+              claudeCodeToday={data?.claude_code?.today}
+              codexToday={data?.codex?.today}
               days={days}
             />
           </div>
