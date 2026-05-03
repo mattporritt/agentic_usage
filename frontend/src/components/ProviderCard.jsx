@@ -545,49 +545,56 @@ export function ProviderCard({ variant, data }) {
         </div>
       </div>
 
-      {/* ── Hero row ── */}
+      {/* ── Rate limits — most prominent section ── */}
+      {windows.length > 0 && (
+        <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {windows.map((w, i) => <RateBar key={i} w={w} accent={v.accent} />)}
+          {data?.usage?.extra_usage && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-body)', color: 'var(--text-3)', paddingTop: 4 }}>
+              <Tooltip text={extraCreditsTip}>
+                <span style={{ cursor: 'help', borderBottom: '1px dotted var(--text-3)' }}>Extra credits</span>
+              </Tooltip>
+              <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>
+                {fmtUsd(data.usage.extra_usage.used_credits)} / {fmtUsd(data.usage.extra_usage.monthly_limit)} {data.usage.extra_usage.currency}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tokens today + cost footnote ── */}
+      <Rule />
       <div style={{
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16,
-        padding: '20px 24px 18px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+        padding: '14px 24px',
       }}>
         <div>
           <div style={{
-            fontSize: 'var(--fs-hero)',
+            fontSize: 'var(--fs-large)',
             fontWeight: 700, lineHeight: 1,
             color: v.accentText, fontFamily: 'var(--font-display)',
-            fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em',
+            fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em',
           }}>
             {fmt(today.total_tokens)}
           </div>
-          <Label style={{ marginTop: 6 }}>tokens today</Label>
+          <Label style={{ marginTop: 5 }}>tokens today</Label>
         </div>
         {cost != null && (
-          <div style={{ textAlign: 'right' }}>
-            <div style={{
-              fontSize: 'var(--fs-large)',
-              fontWeight: 600, lineHeight: 1,
-              color: 'var(--text-1)', fontFamily: 'var(--font-display)',
-              fontVariantNumeric: 'tabular-nums',
+          <Tooltip text={costTip}>
+            <span style={{
+              fontSize: 'var(--fs-micro)', color: 'var(--text-3)',
+              cursor: 'help', borderBottom: '1px dotted var(--text-3)',
+              fontVariantNumeric: 'tabular-nums', letterSpacing: '0.04em',
             }}>
-              {fmtUsd(cost)}
-            </div>
-            <div style={{ marginTop: 6 }}>
-              <Tooltip text={costTip}>
-                <span style={{
-                  fontSize: 'var(--fs-micro)', letterSpacing: '0.11em', textTransform: 'uppercase',
-                  color: 'var(--text-2)', cursor: 'help', borderBottom: '1px dotted var(--text-3)',
-                }}>
-                  est. cost today
-                </span>
-              </Tooltip>
-            </div>
-          </div>
+              ~{fmtUsd(cost)} est.
+            </span>
+          </Tooltip>
         )}
       </div>
 
       {/* ── Token breakdown ── */}
       <Rule />
-      <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ padding: '14px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <StatGrid today={today} isClaudeCode={isClaudeCode} efficiency={efficiency} accentText={v.accentText} />
         {savings != null && savings > 0.01 && (
           <Tooltip text={savingsTip}>
@@ -600,26 +607,6 @@ export function ProviderCard({ variant, data }) {
           </Tooltip>
         )}
       </div>
-
-      {/* ── Rate limits ── */}
-      {windows.length > 0 && (
-        <>
-          <SectionHeader>Rate limit usage</SectionHeader>
-          <div style={{ padding: '14px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {windows.map((w, i) => <RateBar key={i} w={w} accent={v.accent} />)}
-            {data?.usage?.extra_usage && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-body)', color: 'var(--text-3)', paddingTop: 4 }}>
-                <Tooltip text={extraCreditsTip}>
-                  <span style={{ cursor: 'help', borderBottom: '1px dotted var(--text-3)' }}>Extra credits</span>
-                </Tooltip>
-                <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>
-                  {fmtUsd(data.usage.extra_usage.used_credits)} / {fmtUsd(data.usage.extra_usage.monthly_limit)} {data.usage.extra_usage.currency}
-                </span>
-              </div>
-            )}
-          </div>
-        </>
-      )}
 
       {/* ── Quota ── */}
       {data?.quota && (

@@ -9,7 +9,6 @@ function buildChartData(claudeCodeHistory, codexHistory, days) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now)
     d.setDate(d.getDate() - i)
-    // Use local date string to match backend's local-time bucketing
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
     dateMap[key] = { date: key, claude_code: 0, codex: 0 }
   }
@@ -56,7 +55,7 @@ export function UsageChart({ claudeCodeHistory, codexHistory, days }) {
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <LineChart data={chartData} margin={{ top: 8, right: 56, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.04)" />
         <XAxis
           dataKey="date"
@@ -64,9 +63,21 @@ export function UsageChart({ claudeCodeHistory, codexHistory, days }) {
           tickLine={false}
           axisLine={{ stroke: 'rgba(255,255,255,0.07)' }}
         />
+        {/* Left Y-axis — Claude Code */}
         <YAxis
+          yAxisId="left"
           tickFormatter={fmtY}
-          tick={{ fill: '#6b7f99', fontSize: 11, fontFamily: 'var(--font-data)' }}
+          tick={{ fill: '#f97316', fontSize: 10, fontFamily: 'var(--font-data)' }}
+          tickLine={false}
+          axisLine={false}
+          width={48}
+        />
+        {/* Right Y-axis — Codex */}
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          tickFormatter={fmtY}
+          tick={{ fill: '#10b981', fontSize: 10, fontFamily: 'var(--font-data)' }}
           tickLine={false}
           axisLine={false}
           width={48}
@@ -77,13 +88,20 @@ export function UsageChart({ claudeCodeHistory, codexHistory, days }) {
             fontSize: 12, color: '#8fa2bb', paddingTop: 12,
             fontFamily: 'var(--font-data)', letterSpacing: '0.05em',
           }}
+          formatter={(value, entry) => (
+            <span style={{ color: entry.color }}>
+              {value}{entry.dataKey === 'claude_code' ? ' (left)' : ' (right)'}
+            </span>
+          )}
         />
-        <Line type="monotone" dataKey="claude_code" name="Claude Code"
-          stroke="#f97316" strokeWidth={1.5} dot={false}
+        <Line
+          type="monotone" dataKey="claude_code" name="Claude Code"
+          yAxisId="left" stroke="#f97316" strokeWidth={1.5} dot={false}
           activeDot={{ r: 3, fill: '#f97316', strokeWidth: 0 }}
         />
-        <Line type="monotone" dataKey="codex" name="Codex"
-          stroke="#10b981" strokeWidth={1.5} dot={false}
+        <Line
+          type="monotone" dataKey="codex" name="Codex"
+          yAxisId="right" stroke="#10b981" strokeWidth={1.5} dot={false}
           activeDot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
         />
       </LineChart>

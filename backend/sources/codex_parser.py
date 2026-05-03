@@ -14,7 +14,11 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 HISTORY_DAYS = 30
-_COMPLETED_PATTERN = re.compile(r'Received message (\{.*\})')
+# Supports both legacy "Received message {…}" and current "websocket event: {…}" log formats
+_COMPLETED_PATTERN = re.compile(
+    r'(?:Received message |websocket event: )(\{.*\})',
+    re.DOTALL,
+)
 
 
 def _empty_result(configured: bool = True, error: str | None = None) -> dict:
@@ -55,7 +59,7 @@ def _parse_db(db_path: Path, cutoff: datetime, today_str: str) -> dict:
     daily: dict[str, dict] = {}
     by_model: dict[str, dict] = {}
 
-    for ts_nanos, body in rows:
+    for ts_sec, body in rows:
         m = _COMPLETED_PATTERN.search(body)
         if not m:
             continue
@@ -69,7 +73,7 @@ def _parse_db(db_path: Path, cutoff: datetime, today_str: str) -> dict:
         if not usage:
             continue
 
-        created_at = resp.get("created_at") or (ts_nanos // 1_000_000_000)
+        created_at = resp.get("created_at") or ts_sec  # ts column is Unix seconds
         try:
             ts = datetime.fromtimestamp(created_at, tz=timezone.utc)
         except (OSError, ValueError):
